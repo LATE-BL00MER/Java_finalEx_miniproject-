@@ -1,4 +1,4 @@
-package temp_project;
+package zombie_game;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;

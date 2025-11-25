@@ -1,4 +1,4 @@
-package temp_project;
+package zombie_game;
 
 public class RoundManager {
     private int currentRound = 1;
