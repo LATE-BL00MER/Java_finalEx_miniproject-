@@ -1,37 +1,57 @@
 package zombie_game;
 
 public class RoundManager {
-    private int currentRound = 1;
-    private int nextRoundScore = 5;
-    private int zombieSpeed = 10;
 
-    // 게임 시작 시 초기화
+    private int round = 1;
+
+    public int getRound() {
+        return round;
+    }
+
+    /** 라운드별 좀비 이동 속도(기본 단위) */
+    public int getZombieSpeed() {
+        switch (round) {
+            case 1:
+                return 1;   // 가장 느림
+            case 2:
+                return 2;
+            case 3:
+            default:
+                return 3;   // 가장 빠름
+        }
+    }
+
+    /** 새 게임 시작 시 호출 */
     public void reset() {
-        currentRound = 1;
-        nextRoundScore = 5;
-        zombieSpeed = 10;
+        round = 1;
     }
 
     /**
-     * 점수를 확인하여 라운드 업 여부를 반환
-     * @param currentScore 현재 점수
-     * @return 라운드가 올랐으면 true
+     * 점수에 따라 라운드를 올릴지 여부 판단
+     * 1라운드 통과: 10점
+     * 2라운드 통과: 20점
+     * 3라운드 통과: 30점
      */
-    public boolean checkLevelUp(int currentScore) {
-        if (currentScore >= nextRoundScore) {
-            currentRound++;
-            nextRoundScore += 5; // 라운드당 필요 점수 증가량
-            zombieSpeed += 2;    // 좀비 속도 증가
+    public boolean checkLevelUp(int score) {
+        int target;
+        switch (round) {
+            case 1:
+                target = 10;
+                break;
+            case 2:
+                target = 20;
+                break;
+            case 3:
+                target = 30;
+                break;
+            default:
+                return false; // 4라운드 이후는 레벨업 없음
+        }
+
+        if (score >= target) {
+            round++;
             return true;
         }
         return false;
-    }
-
-    public int getRound() {
-        return currentRound;
-    }
-
-    public int getZombieSpeed() {
-        return zombieSpeed;
     }
 }

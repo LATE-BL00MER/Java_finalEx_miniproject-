@@ -22,7 +22,7 @@ public class WordManager {
     private static WordManager instance;
 
     // IntelliJ 기준 경로: 프로젝트/src/temp_project/words.txt
-    private static final String WORD_FILE_PATH = "src/temp_project/words.txt";
+    private static final String WORD_FILE_PATH = "src/zombie_game/words.txt";
 
     private final List<String> words = new ArrayList<>();
     private final Random random = new Random();
