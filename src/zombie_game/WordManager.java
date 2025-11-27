@@ -21,8 +21,9 @@ public class WordManager {
 
     private static WordManager instance;
 
-    // IntelliJ 기준 경로: 프로젝트/src/temp_project/words.txt
-    private static final String WORD_FILE_PATH = "src/zombie_game/words.txt";
+    // [중요 수정] 경로를 "words.txt"로 변경함
+    // 이렇게 하면 src 폴더 구조가 달라도 프로젝트 폴더 바로 아래에서 파일을 찾으므로 에러가 나지 않습니다.
+    private static final String WORD_FILE_PATH = "words.txt";
 
     private final List<String> words = new ArrayList<>();
     private final Random random = new Random();
@@ -46,8 +47,8 @@ public class WordManager {
     }
 
     /** ------------------------------------
-     *  파일 입출력
-     *  ------------------------------------ */
+     * 파일 입출력
+     * ------------------------------------ */
 
     // words.txt에서 단어 읽기
     private synchronized void loadWordsFromFile() {
@@ -77,6 +78,12 @@ public class WordManager {
     // 현재 words 리스트를 words.txt에 저장
     private synchronized void saveWordsToFile() {
         File f = new File(WORD_FILE_PATH);
+
+        // [안전장치] 혹시 모를 폴더 생성 로직 (현재는 최상위라 크게 필요 없지만 유지)
+        if (f.getParentFile() != null && !f.getParentFile().exists()) {
+            f.getParentFile().mkdirs();
+        }
+
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(f))) {
             for (String w : words) {
                 bw.write(w);
@@ -88,8 +95,8 @@ public class WordManager {
     }
 
     /** ------------------------------------
-     *  기본 단어 세트 (파일 없을 때 사용)
-     *  ------------------------------------ */
+     * 기본 단어 세트 (파일 없을 때 사용)
+     * ------------------------------------ */
     private void loadDefaultWords() {
         Collections.addAll(words,
                 "ZOMBIE", "ATTACK", "DANGER", "SURVIVE", "APOCALYPSE",
@@ -101,8 +108,8 @@ public class WordManager {
     }
 
     /** ------------------------------------
-     *  외부에서 사용할 메서드들
-     *  ------------------------------------ */
+     * 외부에서 사용할 메서드들
+     * ------------------------------------ */
 
     // 새 단어 추가 (코드에서 사용 시)
     public synchronized void addWord(String word) {
