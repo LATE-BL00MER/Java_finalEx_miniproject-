@@ -13,6 +13,10 @@ public class ZombieGamePanel extends JPanel {
     private final ZombieFrame frame;
     private final RoundManager roundManager;
 
+    // BGM 재생용
+    private AudioPlayer bgmPlayer;
+    private boolean bgmMuted = false;   // true면 음소거 상태
+
     // HUD
     private final JLabel infoLabel;
     private final JLabel scoreLabel;
@@ -50,7 +54,7 @@ public class ZombieGamePanel extends JPanel {
     private final Image[] zombieImages = new Image[4];
     private Image bossImage;
 
-    // 총 위치 (총알 출발점 계산)
+    // 총 위치 (총알 출발점 계산용)
     private int gunDrawX, gunDrawY, gunDrawW, gunDrawH;
 
     // 피격 연출 & 쿨타임
@@ -67,20 +71,20 @@ public class ZombieGamePanel extends JPanel {
 
     private String damageText = null;
     private int damageTextFrames = 0;
+    private int screenShakeFrames = 0;   // 피격 시 화면 흔들림 프레임 수
 
     // 보스
     private BossZombie bossZombie = null;
     private int bossSpawnCountThisRound = 0;
-    // index : 라운드 번호, 값 : 해당 라운드에서 최대 보스 스폰 횟수
     private static final int[] BOSS_SPAWN_LIMIT = {0, 2, 3, 5};
 
     // ---------------- 내부 클래스 ----------------
 
     private static class Zombie {
         String word;
-        double distance;  // 0에 가까울수록 플레이어 근처
+        double distance;
         int id;
-        int xPos;         // 화면 X 위치(중앙 기준)
+        int xPos;
         int spriteIndex;
 
         Zombie(int id, String word, double distance, int xPos, int spriteIndex) {
@@ -103,7 +107,7 @@ public class ZombieGamePanel extends JPanel {
             this.index = 0;
         }
 
-        /** 현재 단어와 같으면 다음 단계로, 마지막이면 true(사망) */
+        /** 현재 단어를 맞췄다면 true/false, 마지막 단어까지 다 맞추면 최종 true */
         boolean hit(String typed) {
             if (!words[index].equalsIgnoreCase(typed)) {
                 return false;
@@ -122,8 +126,7 @@ public class ZombieGamePanel extends JPanel {
         double x, y;
         final double startX, startY;
         final double targetX, targetY;
-        final Zombie target;
-        boolean finished = false;
+        final Zombie target;    // 현재는 판정용으로 사용하지 않음(즉시 판정)
 
         Bullet(double startX, double startY, double targetX, double targetY, Zombie target) {
             this.startX = startX;
@@ -139,39 +142,27 @@ public class ZombieGamePanel extends JPanel {
     /** 메인 게임 루프 스레드 */
     private class GameLoopThread extends Thread {
         private volatile boolean running = true;
-
-        public void requestStop() {
-            running = false;
-            interrupt();
-        }
-
-        @Override
-        public void run() {
+        public void requestStop() { running = false; interrupt(); }
+        @Override public void run() {
             while (running) {
-                try {
-                    Thread.sleep(LOOP_DELAY_MS);
-                } catch (InterruptedException e) {
-                    break;
-                }
+                try { Thread.sleep(LOOP_DELAY_MS); }
+                catch (InterruptedException e) { break; }
                 if (!running) break;
-
                 SwingUtilities.invokeLater(() -> gameTick());
             }
         }
     }
 
-    /** 총알 애니메이션 스레드 */
+    /** 총알 애니메이션 스레드 (빠르게) */
     private class BulletThread extends Thread {
         private final Bullet bullet;
-
-        BulletThread(Bullet bullet) {
-            this.bullet = bullet;
-        }
+        BulletThread(Bullet bullet) { this.bullet = bullet; }
 
         @Override
         public void run() {
-            int steps = 22;
-            int sleepMs = 18;
+            int steps = 18;
+            int sleepMs = 8;
+
             for (int i = 1; i <= steps; i++) {
                 double t = i / (double) steps;
                 final double nx = bullet.startX + (bullet.targetX - bullet.startX) * t;
@@ -183,19 +174,12 @@ public class ZombieGamePanel extends JPanel {
                     viewPanel.repaint();
                 });
 
-                try {
-                    Thread.sleep(sleepMs);
-                } catch (InterruptedException e) {
-                    return;
-                }
+                try { Thread.sleep(sleepMs); }
+                catch (InterruptedException e) { return; }
             }
 
-            SwingUtilities.invokeLater(() -> {
-                bullet.finished = true;
-                applyBulletHit(bullet.target);
-                bullets.remove(bullet);
-                viewPanel.repaint();
-            });
+            // ★ 총알 이동 애니메이션 끝 → bullets 리스트에서 제거
+            SwingUtilities.invokeLater(() -> bullets.remove(bullet));
         }
     }
 
@@ -209,12 +193,17 @@ public class ZombieGamePanel extends JPanel {
                     SwingUtilities.invokeLater(() -> viewPanel.repaint());
                     Thread.sleep(1000);
                 }
-            } catch (InterruptedException ignored) {
-            }
+            } catch (InterruptedException ignored) {}
             SwingUtilities.invokeLater(() -> {
                 countdownValue = 0;
                 isPaused = false;
                 isCountingDown = false;
+
+                // 일시정지 해제 시, 음소거가 아니라면 BGM 재개
+                if (bgmPlayer != null && !bgmMuted) {
+                    bgmPlayer.resume();
+                }
+
                 startGameThread();
                 inputField.requestFocusInWindow();
             });
@@ -286,8 +275,7 @@ public class ZombieGamePanel extends JPanel {
         getInputMap(WHEN_IN_FOCUSED_WINDOW)
                 .put(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0), "focusInputField");
         getActionMap().put("focusInputField", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
+            @Override public void actionPerformed(ActionEvent e) {
                 inputField.requestFocusInWindow();
             }
         });
@@ -296,11 +284,14 @@ public class ZombieGamePanel extends JPanel {
         getInputMap(WHEN_IN_FOCUSED_WINDOW)
                 .put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "togglePause");
         getActionMap().put("togglePause", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                togglePause();
-            }
+            @Override public void actionPerformed(ActionEvent e) { togglePause(); }
         });
+
+        // BGM 로딩 및 반복 재생 시작
+        bgmPlayer = new AudioPlayer("bgm.wav"); // 프로젝트 루트에 bgm.wav
+        if (bgmPlayer != null && !bgmMuted) {
+            bgmPlayer.playLoop();
+        }
 
         updateHearts();
         updateHud();
@@ -325,6 +316,7 @@ public class ZombieGamePanel extends JPanel {
         this.bossSpawnCountThisRound = 0;
         this.dangerNear = false;
         this.dangerPulseTick = 0;
+        this.screenShakeFrames = 0;
 
         roundManager.reset();
 
@@ -334,19 +326,21 @@ public class ZombieGamePanel extends JPanel {
         inputField.setText("");
         inputField.requestFocus();
 
+        // 새 게임 시작 시 BGM도 다시 루프
+        if (bgmPlayer != null && !bgmMuted) {
+            bgmPlayer.playLoop();
+        }
+
         startRoundEffect();
     }
 
-    /** 라운드 시작 연출 */
     private void startRoundEffect() {
         isRoundAnimating = true;
         stopGameThread();
         viewPanel.repaint();
 
         Thread effectThread = new Thread(() -> {
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException ignored) {}
+            try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
             SwingUtilities.invokeLater(() -> {
                 isRoundAnimating = false;
                 if (hp > 0 && roundManager.getRound() <= 3) {
@@ -384,32 +378,31 @@ public class ZombieGamePanel extends JPanel {
 
         tickCount++;
 
-        // 좀비 스폰 (라운드별 간격)
         int round = roundManager.getRound();
         int spawnInterval;
-        if (round <= 1) spawnInterval = 32;      // 약 1.3초
-        else if (round == 2) spawnInterval = 24; // 약 1.0초
-        else spawnInterval = 18;                 // 약 0.7초
+        if (round <= 1) spawnInterval = 30;
+        else if (round == 2) spawnInterval = 22;
+        else spawnInterval = 16;
 
         if (tickCount % spawnInterval == 0) {
             spawnZombie();
         }
 
-        // 보스 스폰 (라운드마다 제한 횟수 다름)
         trySpawnBoss();
 
-        // 피격 쿨타임 감소
-        if (damageCooldownTicks > 0) {
-            damageCooldownTicks--;
-        }
+        if (damageCooldownTicks > 0) damageCooldownTicks--;
         if (damageEffectFrames > 0) damageEffectFrames--;
         if (gunShakeFrames > 0) gunShakeFrames--;
         if (damageTextFrames > 0) damageTextFrames--;
 
         boolean damagedThisTick = false;
 
-        // 좀비 이동 (더 느리고 부드럽게)
-        double speedPerTick = roundManager.getZombieSpeed() * 0.08; // 0.12 → 0.08 로 완화
+        // 좀비 이동 속도 (라운드별로)
+        double speedBase = roundManager.getZombieSpeed(); // 1,2,3...
+        double speedPerTick;
+        if (round == 1)      speedPerTick = speedBase * 0.15;
+        else if (round == 2) speedPerTick = speedBase * 0.18;
+        else                 speedPerTick = speedBase * 0.21;
 
         dangerNear = false;
 
@@ -431,7 +424,6 @@ public class ZombieGamePanel extends JPanel {
             }
         }
 
-        // 보스 이동
         if (bossZombie != null) {
             bossZombie.distance -= speedPerTick;
 
@@ -441,23 +433,20 @@ public class ZombieGamePanel extends JPanel {
 
             if (bossZombie.distance <= DAMAGE_DISTANCE_THRESHOLD) {
                 if (damageCooldownTicks == 0) {
-                    hp -= 2;              // 보스는 2칸 데미지
+                    hp -= 2;
                     damagedThisTick = true;
                 }
                 bossZombie = null;
             }
         }
 
-        if (dangerNear) {
-            dangerPulseTick++;
-        } else {
-            dangerPulseTick = 0;
-        }
+        if (dangerNear) dangerPulseTick++; else dangerPulseTick = 0;
 
         if (damagedThisTick) {
             damageCooldownTicks = DAMAGE_COOLDOWN_MAX;
             damageEffectFrames = 12;
             gunShakeFrames = 12;
+            screenShakeFrames = 12;  // ★ 화면 흔들림 추가
             damageText = (Math.random() < 0.5) ? "물림!" : "윽!";
             damageTextFrames = 20;
 
@@ -471,10 +460,28 @@ public class ZombieGamePanel extends JPanel {
         viewPanel.repaint();
     }
 
-    /** 일반 좀비 하나 스폰 */
+    // 다른 좀비와 너무 겹쳐서 스폰되지 않도록 체크
+    private boolean isSpawnTooClose(int xPos) {
+        for (Zombie z : zombies) {
+            if (Math.abs(z.xPos - xPos) < 90 && z.distance > 30) {
+                return true;
+            }
+        }
+        if (bossZombie != null && Math.abs(bossZombie.xPos - xPos) < 120) {
+            return true;
+        }
+        return false;
+    }
+
     private void spawnZombie() {
         String w = WordManager.getInstance().getRandomWord();
-        int xPos = (int) (viewPanel.getWidth() * (0.15 + Math.random() * 0.7));
+
+        int xPos;
+        int attempts = 0;
+        do {
+            xPos = (int) (viewPanel.getWidth() * (0.15 + Math.random() * 0.7));
+            attempts++;
+        } while (attempts < 10 && isSpawnTooClose(xPos));
 
         int spriteIndex = (int) (Math.random() * zombieImages.length);
         if (spriteIndex < 0) spriteIndex = 0;
@@ -483,7 +490,6 @@ public class ZombieGamePanel extends JPanel {
         zombies.add(new Zombie(zombieIdSeq++, w, 100.0, xPos, spriteIndex));
     }
 
-    /** 현재 라운드, 스폰 횟수, 틱에 따라 보스를 스폰 */
     private void trySpawnBoss() {
         int round = roundManager.getRound();
 
@@ -499,9 +505,9 @@ public class ZombieGamePanel extends JPanel {
         if (bossSpawnCountThisRound >= limit) return;
 
         int interval;
-        if (round <= 1) interval = 220;       // 1R: 최대 2번 정도
-        else if (round == 2) interval = 170;  // 2R: 더 자주
-        else interval = 130;                  // 3R+: 더 자주
+        if (round <= 1) interval = 220;
+        else if (round == 2) interval = 170;
+        else interval = 130;
 
         if (tickCount % interval == 0) {
             spawnBoss(round);
@@ -520,7 +526,19 @@ public class ZombieGamePanel extends JPanel {
     private void drawGameScreen(Graphics2D g2d) {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // 배경
+        // ★ 화면 흔들림 계산
+        int shakeX = 0;
+        int shakeY = 0;
+        if (screenShakeFrames > 0) {
+            double power = 6.0; // 흔들림 강도
+            shakeX = (int) ((Math.random() - 0.5) * 2 * power);
+            shakeY = (int) ((Math.random() - 0.5) * 2 * power);
+            screenShakeFrames--;
+        }
+
+        // ★ 전체 화면을 살짝 이동
+        g2d.translate(shakeX, shakeY);
+
         if (backgroundImage != null) {
             g2d.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
         } else {
@@ -528,26 +546,23 @@ public class ZombieGamePanel extends JPanel {
             g2d.fillRect(0, 0, getWidth(), getHeight());
         }
 
-        // 좀비 & 보스 & 총알 & 총
         drawZombies(g2d);
         drawBoss(g2d);
         drawBullets(g2d);
         drawGun(g2d);
-
-        // 조준선
         drawCrosshair(g2d);
 
-        // 근접 경고(닿기 직전): 화면 테두리 붉게 + "위험!"
+        // 근접 경고
         if (dangerNear && damageEffectFrames <= 0) {
             double pulse = 0.5 + 0.5 * Math.sin(dangerPulseTick * 0.25);
             int alpha = (int) (40 + 50 * pulse);
             g2d.setColor(new Color(255, 0, 0, alpha));
 
-            int t = 25; // 테두리 두께
-            g2d.fillRect(0, 0, getWidth(), t);                     // 위
-            g2d.fillRect(0, getHeight() - t, getWidth(), t);       // 아래
-            g2d.fillRect(0, 0, t, getHeight());                    // 왼쪽
-            g2d.fillRect(getWidth() - t, 0, t, getHeight());       // 오른쪽
+            int t = 25;
+            g2d.fillRect(0, 0, getWidth(), t);
+            g2d.fillRect(0, getHeight() - t, getWidth(), t);
+            g2d.fillRect(0, 0, t, getHeight());
+            g2d.fillRect(getWidth() - t, 0, t, getHeight());
 
             String warn = "위험!";
             g2d.setFont(new Font("맑은 고딕", Font.BOLD, 26));
@@ -561,7 +576,6 @@ public class ZombieGamePanel extends JPanel {
             g2d.drawString(warn, x, y);
         }
 
-        // 피격 오버레이 + 텍스트
         if (damageEffectFrames > 0) {
             g2d.setColor(new Color(255, 0, 0, 70));
             g2d.fillRect(0, 0, getWidth(), getHeight());
@@ -578,12 +592,10 @@ public class ZombieGamePanel extends JPanel {
             g2d.drawString(damageText, x, y);
         }
 
-        // 라운드 시작 연출
         if (isRoundAnimating) {
             drawRoundEffect(g2d);
         }
 
-        // 일시정지 / 카운트다운 오버레이
         if (isPaused || isCountingDown) {
             g2d.setColor(new Color(50, 50, 50, 150));
             g2d.fillRect(0, 0, getWidth(), getHeight());
@@ -614,6 +626,9 @@ public class ZombieGamePanel extends JPanel {
             g2d.setColor(Color.YELLOW);
             g2d.drawString(msg, x, y);
         }
+
+        // ★ 이동한 만큼 다시 원위치
+        g2d.translate(-shakeX, -shakeY);
     }
 
     private void drawRoundEffect(Graphics2D g2d) {
@@ -635,32 +650,27 @@ public class ZombieGamePanel extends JPanel {
         g2d.drawString(msg, cx - textW / 2, cy);
     }
 
+    // ----------- 총기 그리기 (화면 비율에 맞게, 손 보이게) -----------
     private void drawGun(Graphics2D g2d) {
         if (gunImage == null) return;
 
-        int w = gunImage.getWidth(this);
-        int h = gunImage.getHeight(this);
+        int iw = gunImage.getWidth(this);
+        int ih = gunImage.getHeight(this);
 
-        double fixedScale = 0.85;
-        int drawW = (int) (w * fixedScale);
-        int drawH = (int) (h * fixedScale);
+        double baseScale = 0.8;
 
-        double autoScale = 1.0;
-        if (drawW > getWidth() * 0.55) {
-            autoScale = (getWidth() * 0.55) / drawW;
-        }
-        if (drawH > getHeight() * 0.60) {
-            autoScale = Math.min(autoScale, (getHeight() * 0.60) / drawH);
-        }
-        if (autoScale < 1.0) {
-            drawW = (int) (drawW * autoScale);
-            drawH = (int) (drawH * autoScale);
-        }
+        double maxByWidth  = (getWidth()  * 0.50) / iw;
+        double maxByHeight = (getHeight() * 0.60) / ih;
 
-        int marginX = 60;
-        int marginY = 45;
-        int x = getWidth() - drawW - marginX;
-        int y = getHeight() - drawH - marginY;
+        double scale = Math.min(baseScale, Math.min(maxByWidth, maxByHeight));
+
+        int drawW = (int) (iw * scale);
+        int drawH = (int) (ih * scale);
+
+        int marginRight  = 40;
+        int marginBottom = 35;
+        int x = getWidth()  - drawW - marginRight;
+        int y = getHeight() - drawH - marginBottom;
 
         if (gunShakeFrames > 0) {
             int sx = (int) (Math.sin(gunShakeFrames * 0.7) * 6);
@@ -681,7 +691,6 @@ public class ZombieGamePanel extends JPanel {
         g2d.setColor(new Color(255, 230, 80));
         int r = 6;
         for (Bullet b : bullets) {
-            if (b.finished) continue;
             g2d.fillOval((int) b.x - r, (int) b.y - r, r * 2, r * 2);
         }
     }
@@ -700,10 +709,7 @@ public class ZombieGamePanel extends JPanel {
 
         boolean anySprite = false;
         for (Image img : zombieImages) {
-            if (img != null) {
-                anySprite = true;
-                break;
-            }
+            if (img != null) { anySprite = true; break; }
         }
 
         for (Zombie z : zombies) {
@@ -731,7 +737,6 @@ public class ZombieGamePanel extends JPanel {
                 int xPos = z.xPos - drawW / 2 + sway;
                 int yPos = groundY - drawH + bob;
 
-                // 그림자
                 int shadowW = (int) (drawW * 0.7);
                 int shadowH = (int) (drawH * 0.15);
                 int shadowX = z.xPos - shadowW / 2 + sway;
@@ -756,7 +761,6 @@ public class ZombieGamePanel extends JPanel {
                 g2d.setColor(Color.RED);
                 g2d.drawString(z.word, textX, textY);
             } else {
-                // 백업: 원형 좀비
                 float scale = (float) (1.0 - (z.distance / 120.0));
                 if (scale < 0.25f) scale = 0.25f;
                 if (scale > 1.0f) scale = 1.0f;
@@ -842,46 +846,7 @@ public class ZombieGamePanel extends JPanel {
         String typed = text.trim();
         if (typed.isEmpty()) return;
 
-        // 1) 보스가 있으면 보스 우선
-        if (bossZombie != null) {
-            boolean bossDead = bossZombie.hit(typed);
-            score += 1;
-
-            if (bossDead) {
-                score += 2;   // 마지막 타 보너스
-                bossZombie = null;
-            }
-
-            if (roundManager.checkLevelUp(score)) {
-                if (roundManager.getRound() > 3) {
-                    gameClear();
-                    return;
-                } else {
-                    zombies.clear();
-                    bullets.clear();
-                    tickCount = 0;
-                    damageCooldownTicks = 0;
-                    resetBossForNewRound();
-                    startRoundEffect();
-                }
-            }
-
-            updateHud();
-            viewPanel.repaint();
-            return;
-        }
-
-        // 2) 일반 좀비 중 같은 단어인 것들 중 "가장 가까운" 한 마리
-        Zombie target = null;
-        for (Zombie z : zombies) {
-            if (z.word.equalsIgnoreCase(typed)) {
-                if (target == null || z.distance < target.distance) {
-                    target = z;
-                }
-            }
-        }
-        if (target == null) return;
-
+        // 총알 출발 위치 (총 이미지 기준)
         int startX, startY;
         if (gunDrawW > 0 && gunDrawH > 0) {
             startX = gunDrawX + (int) (gunDrawW * 0.75);
@@ -891,10 +856,68 @@ public class ZombieGamePanel extends JPanel {
             startY = getHeight() - 100;
         }
 
-        Point p = computeZombieCenter(target);
-        Bullet bullet = new Bullet(startX, startY, p.x, p.y, target);
+        // 1) 먼저 일반 좀비부터 판정 (보스가 있어도 항상 가능해야 함)
+        Zombie normalTarget = null;
+        for (Zombie z : zombies) {
+            if (z.word.equalsIgnoreCase(typed)) {
+                if (normalTarget == null || z.distance < normalTarget.distance) {
+                    normalTarget = z;
+                }
+            }
+        }
+
+        if (normalTarget != null) {
+            Point p = computeZombieCenter(normalTarget);
+            applyBulletHit(normalTarget); // 점수 + 레벨업 처리
+
+            Bullet bullet = new Bullet(startX, startY, p.x, p.y, null);
+            bullets.add(bullet);
+            new BulletThread(bullet).start();
+            return; // 이번 입력은 일반 좀비 명중으로 끝
+        }
+
+        // 2) 일반 좀비가 아니면 보스 판정
+        if (bossZombie != null) {
+            handleBossShot(typed, startX, startY);
+        }
+    }
+
+    private void handleBossShot(String typed, int startX, int startY) {
+        if (bossZombie == null) return;
+
+        boolean bossDead = bossZombie.hit(typed);
+
+        // 총알 애니메이션
+        Point p = computeBossCenter();
+        Bullet bullet = new Bullet(startX, startY, p.x, p.y, null);
         bullets.add(bullet);
         new BulletThread(bullet).start();
+
+        if (bossDead) {
+            // ★ 세 단어를 모두 맞춰서 최종적으로 쓰러뜨렸을 때만 +1점
+            score += 1;
+
+            // ★ 보스 사망 시 총알들도 바로 지워주기
+            bullets.clear();
+
+            if (roundManager.checkLevelUp(score)) {
+                if (roundManager.getRound() > 3) {
+                    gameClear();
+                    return;
+                } else {
+                    zombies.clear();
+                    bullets.clear();   // 라운드 넘어갈 때 한 번 더 초기화
+                    tickCount = 0;
+                    damageCooldownTicks = 0;
+                    resetBossForNewRound();
+                    startRoundEffect();
+                }
+            }
+            bossZombie = null;
+        }
+
+        updateHud();
+        viewPanel.repaint();
     }
 
     private Point computeZombieCenter(Zombie z) {
@@ -928,19 +951,53 @@ public class ZombieGamePanel extends JPanel {
         return new Point(cx, cy);
     }
 
+    private Point computeBossCenter() {
+        int groundY = getHeight() * 2 / 3;
+
+        if (bossZombie == null) {
+            return new Point(getWidth() / 2, groundY - 80);
+        }
+
+        if (bossImage == null) {
+            int y = groundY - 80;
+            return new Point(bossZombie.xPos, y);
+        }
+
+        int iw = bossImage.getWidth(this);
+        int ih = bossImage.getHeight(this);
+
+        float depthScale = (float) (1.0 - (bossZombie.distance / 120.0));
+        if (depthScale < 0.4f) depthScale = 0.4f;
+        if (depthScale > 1.1f) depthScale = 1.1f;
+
+        int drawW = (int) (iw * depthScale);
+        int drawH = (int) (ih * depthScale);
+
+        int xPos = bossZombie.xPos - drawW / 2;
+        int yPos = groundY - drawH;
+
+        return new Point(xPos + drawW / 2, yPos + drawH / 3);
+    }
+
     private void applyBulletHit(Zombie target) {
+        // 이미 제거된 좀비면 무시
         if (!zombies.contains(target)) return;
 
+        // 1) 좀비 제거 & 점수 증가
         zombies.remove(target);
         score++;
 
+        // 2) ★ 화면에 남아 있을 수 있는 총알들을 싹 지워준다
+        bullets.clear();
+
+        // 3) 라운드 클리어 / 게임 클리어 체크
         if (roundManager.checkLevelUp(score)) {
             if (roundManager.getRound() > 3) {
                 gameClear();
                 return;
             } else {
                 zombies.clear();
-                bullets.clear();
+                bullets.clear();       // 다음 라운드 시작 전에 한 번 더 초기화
                 tickCount = 0;
                 damageCooldownTicks = 0;
                 resetBossForNewRound();
@@ -957,35 +1014,50 @@ public class ZombieGamePanel extends JPanel {
     private void togglePause() {
         if (hp <= 0 || isRoundAnimating) return;
         if (isCountingDown) return;
+        if (isPaused) return;
 
-        if (!isPaused) {
-            // 일시정지 진입
-            isPaused = true;
-            stopGameThread();
-            viewPanel.repaint();
+        isPaused = true;
+        stopGameThread();
+        viewPanel.repaint();
 
-            String[] options = {"계속하기", "메인으로"};
-            int choice = JOptionPane.showOptionDialog(
-                    frame,
-                    "게임이 일시정지되었습니다.",
-                    "일시정지",
-                    JOptionPane.DEFAULT_OPTION,
-                    JOptionPane.INFORMATION_MESSAGE,
-                    null,
-                    options,
-                    options[0]
-            );
+        JButton muteBtn = new JButton(bgmMuted ? "🔇 음악 켜기" : "🔊 음악 끄기");
 
-            if (choice == 1) {
-                // 메인으로
-                isPaused = false;
-                frame.showStartPanel();
-            } else {
-                // 3-2-1 카운트다운 후 재개
-                isCountingDown = true;
-                new ResumeCountdownThread().start();
+        muteBtn.addActionListener(e -> {
+            bgmMuted = !bgmMuted;
+            if (bgmPlayer != null) {
+                if (bgmMuted) bgmPlayer.pause();
+                else bgmPlayer.resume();
             }
+            muteBtn.setText(bgmMuted ? "🔇 음악 켜기" : "🔊 음악 끄기");
+        });
+
+        Object[] message = {
+                "게임이 일시정지되었습니다.",
+                "ESC로도 이 창이 뜹니다.",
+                muteBtn
+        };
+        String[] options = {"계속하기", "메인으로"};
+
+        int choice = JOptionPane.showOptionDialog(
+                frame,
+                message,
+                "일시정지",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.INFORMATION_MESSAGE,
+                null,
+                options,
+                options[0]
+        );
+
+        if (choice == 1) {
+            stopGameThread();
+            if (bgmPlayer != null) bgmPlayer.stop();
+            frame.showStartPanel();
+            return;
         }
+
+        isCountingDown = true;
+        new ResumeCountdownThread().start();
     }
 
     private void gameOver() {
@@ -1007,6 +1079,7 @@ public class ZombieGamePanel extends JPanel {
         if (choice == 0) {
             startNewGame(playerName);
         } else {
+            if (bgmPlayer != null) bgmPlayer.stop();
             frame.showStartPanel();
         }
     }
@@ -1030,6 +1103,7 @@ public class ZombieGamePanel extends JPanel {
         if (choice == 0) {
             startNewGame(playerName);
         } else {
+            if (bgmPlayer != null) bgmPlayer.stop();
             frame.showStartPanel();
         }
     }
@@ -1045,7 +1119,6 @@ public class ZombieGamePanel extends JPanel {
         heartPanel.removeAll();
         for (int i = 0; i < 5; i++) {
             JLabel heart = new JLabel(i < hp ? "❤️" : "🖤");
-            heart.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
             heartPanel.add(heart);
         }
         heartPanel.revalidate();
@@ -1055,54 +1128,31 @@ public class ZombieGamePanel extends JPanel {
     // ---------------- 이미지 로딩 ----------------
 
     private void loadImages() {
-        // 총
         try {
             URL gunUrl = getClass().getResource("images/gun.png");
-            if (gunUrl != null) {
-                gunImage = new ImageIcon(gunUrl).getImage();
-            } else {
-                System.err.println("gun.png 로드 실패");
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
+            if (gunUrl != null) gunImage = new ImageIcon(gunUrl).getImage();
+            else System.err.println("gun.png 로드 실패");
+        } catch (Exception ex) { ex.printStackTrace(); }
 
-        // 일반 좀비 4종
-        try {
-            zombieImages[0] = new ImageIcon(getClass().getResource("images/zombie_1.png")).getImage();
-        } catch (Exception ex) { System.err.println("zombie_1.png 로드 실패"); }
-        try {
-            zombieImages[1] = new ImageIcon(getClass().getResource("images/zombie_2.png")).getImage();
-        } catch (Exception ex) { System.err.println("zombie_2.png 로드 실패"); }
-        try {
-            zombieImages[2] = new ImageIcon(getClass().getResource("images/zombie_3.png")).getImage();
-        } catch (Exception ex) { System.err.println("zombie_3.png 로드 실패"); }
-        try {
-            zombieImages[3] = new ImageIcon(getClass().getResource("images/zombie_4.png")).getImage();
-        } catch (Exception ex) { System.err.println("zombie_4.png 로드 실패"); }
+        try { zombieImages[0] = new ImageIcon(getClass().getResource("images/zombie_1.png")).getImage(); }
+        catch (Exception ex) { System.err.println("zombie_1.png 로드 실패"); }
+        try { zombieImages[1] = new ImageIcon(getClass().getResource("images/zombie_2.png")).getImage(); }
+        catch (Exception ex) { System.err.println("zombie_2.png 로드 실패"); }
+        try { zombieImages[2] = new ImageIcon(getClass().getResource("images/zombie_3.png")).getImage(); }
+        catch (Exception ex) { System.err.println("zombie_3.png 로드 실패"); }
+        try { zombieImages[3] = new ImageIcon(getClass().getResource("images/zombie_4.png")).getImage(); }
+        catch (Exception ex) { System.err.println("zombie_4.png 로드 실패"); }
 
-        // 보스 이미지
         try {
             URL bossUrl = getClass().getResource("images/zombie_boss.png");
-            if (bossUrl != null) {
-                bossImage = new ImageIcon(bossUrl).getImage();
-            } else {
-                System.err.println("zombie_boss.png 로드 실패");
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
+            if (bossUrl != null) bossImage = new ImageIcon(bossUrl).getImage();
+            else System.err.println("zombie_boss.png 로드 실패");
+        } catch (Exception ex) { ex.printStackTrace(); }
 
-        // 배경
         try {
             URL bgUrl = getClass().getResource("images/ZombieBackground.jpg");
-            if (bgUrl != null) {
-                backgroundImage = new ImageIcon(bgUrl).getImage();
-            } else {
-                System.err.println("ZombieBackground.jpg 로드 실패");
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
+            if (bgUrl != null) backgroundImage = new ImageIcon(bgUrl).getImage();
+            else System.err.println("ZombieBackground.jpg 로드 실패");
+        } catch (Exception ex) { ex.printStackTrace(); }
     }
 }

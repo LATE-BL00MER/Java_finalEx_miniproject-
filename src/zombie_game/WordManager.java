@@ -1,154 +1,125 @@
 package zombie_game;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 /**
- * 단어 저장/관리용 클래스
- * - words.txt 파일에서 단어를 읽어와 관리
- * - 파일이 없으면 기본 단어들로 초기화 후 자동 생성
+ * WordManager
+ * - word.txt에서 단어 읽기
+ * - 단어 추가/삭제
+ * - 전체 단어 리스트 반환
  * - 랜덤 단어 제공
+ * - 싱글톤 패턴
  */
 public class WordManager {
 
     private static WordManager instance;
-
-    // [중요 수정] 경로를 "words.txt"로 변경함
-    // 이렇게 하면 src 폴더 구조가 달라도 프로젝트 폴더 바로 아래에서 파일을 찾으므로 에러가 나지 않습니다.
-    private static final String WORD_FILE_PATH = "words.txt";
-
     private final List<String> words = new ArrayList<>();
-    private final Random random = new Random();
 
-    private WordManager() {
-        // 1) 파일에서 단어 읽기 시도
-        loadWordsFromFile();
+    private static final String WORD_FILE = "words.txt";
 
-        // 2) 파일이 없거나, 읽은 단어가 하나도 없으면 기본 단어 세트 사용
-        if (words.isEmpty()) {
-            loadDefaultWords();
-            saveWordsToFile(); // 기본 단어를 파일로 써놓기
-        }
-    }
-
+    /** 싱글톤 인스턴스 */
     public static synchronized WordManager getInstance() {
-        if (instance == null) {
-            instance = new WordManager();
-        }
+        if (instance == null) instance = new WordManager();
         return instance;
     }
 
-    /** ------------------------------------
-     * 파일 입출력
-     * ------------------------------------ */
+    /** 생성자: word.txt 로딩만 수행 */
+    private WordManager() {
+        loadWordsFromFile();
+    }
 
-    // words.txt에서 단어 읽기
-    private synchronized void loadWordsFromFile() {
+    // ----------------------------------------------------
+    // word.txt 읽기
+    // ----------------------------------------------------
+    private void loadWordsFromFile() {
         words.clear();
+        File file = new File(WORD_FILE);
 
-        File f = new File(WORD_FILE_PATH);
-        if (!f.exists()) {
-            // 파일이 아직 없으면 그냥 리턴 (기본 단어 사용 예정)
+        if (!file.exists()) {
+            System.err.println("⚠ word.txt 파일이 존재하지 않음 → 새로 생성합니다.");
+            saveWordsToFile();   // 빈 파일 생성
             return;
         }
 
-        try (BufferedReader br = new BufferedReader(new FileReader(f))) {
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+
             String line;
             while ((line = br.readLine()) != null) {
-                String s = line.trim();
-                if (!s.isEmpty() && !words.contains(s)) {
-                    words.add(s.toUpperCase());  // 모두 대문자로 통일
+                line = line.trim();
+                if (!line.isEmpty()) {
+                    words.add(line);
                 }
             }
-        } catch (IOException e) {
+
+            System.out.println("✔ word.txt 로드 완료 (단어 수: " + words.size() + ")");
+
+        } catch (Exception e) {
             e.printStackTrace();
         }
-
-        Collections.sort(words);
     }
 
-    // 현재 words 리스트를 words.txt에 저장
-    private synchronized void saveWordsToFile() {
-        File f = new File(WORD_FILE_PATH);
+    // ----------------------------------------------------
+    // word.txt 저장하기
+    // ----------------------------------------------------
+    private void saveWordsToFile() {
+        try (BufferedWriter bw = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(WORD_FILE), StandardCharsets.UTF_8))) {
 
-        // [안전장치] 혹시 모를 폴더 생성 로직 (현재는 최상위라 크게 필요 없지만 유지)
-        if (f.getParentFile() != null && !f.getParentFile().exists()) {
-            f.getParentFile().mkdirs();
-        }
-
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(f))) {
             for (String w : words) {
                 bw.write(w);
                 bw.newLine();
             }
-        } catch (IOException e) {
+
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    /** ------------------------------------
-     * 기본 단어 세트 (파일 없을 때 사용)
-     * ------------------------------------ */
-    private void loadDefaultWords() {
-        Collections.addAll(words,
-                "ZOMBIE", "ATTACK", "DANGER", "SURVIVE", "APOCALYPSE",
-                "BLOOD", "BRAIN", "NIGHTMARE", "INFECTION", "OUTBREAK",
-                "PANIC", "ESCAPE", "GUNSHOT", "BULLET", "HUNTER",
-                "CRAWLER", "RUNNER", "SCREAM", "VIRUS", "ANTIDOTE"
-        );
-        Collections.sort(words);
-    }
-
-    /** ------------------------------------
-     * 외부에서 사용할 메서드들
-     * ------------------------------------ */
-
-    // 새 단어 추가 (코드에서 사용 시)
+    // ----------------------------------------------------
+    // 단어 추가
+    // ----------------------------------------------------
     public synchronized void addWord(String word) {
         if (word == null) return;
-        String s = word.trim().toUpperCase();
-        if (s.isEmpty()) return;
+        word = word.trim();
+        if (word.isEmpty()) return;
 
-        if (!words.contains(s)) {
-            words.add(s);
-            Collections.sort(words);
-            saveWordsToFile(); // 파일에도 반영
-        }
+        words.add(word);
+        saveWordsToFile();
     }
 
+    // ----------------------------------------------------
     // 단어 삭제
+    // ----------------------------------------------------
     public synchronized void removeWord(String word) {
         if (word == null) return;
-        String s = word.trim().toUpperCase();
-        if (words.remove(s)) {
-            saveWordsToFile();
-        }
+
+        words.removeIf(w -> w.equalsIgnoreCase(word));
+        saveWordsToFile();
     }
 
-    // 전체 단어 목록 (복사본 반환)
-    public synchronized List<String> getAllWords() {
+    // ----------------------------------------------------
+    // 모든 단어 반환
+    // ----------------------------------------------------
+    public synchronized List<String> getWords() {
         return new ArrayList<>(words);
     }
 
-    // 랜덤 단어 하나 가져오기
+    /** 기존 코드 호환용 (ZombieFrame 등에서 호출) */
+    public synchronized List<String> getAllWords() {
+        return getWords();
+    }
+
+    // ----------------------------------------------------
+    // 랜덤 단어 제공
+    // ----------------------------------------------------
+    private final Random random = new Random();
+
     public synchronized String getRandomWord() {
-        if (words.isEmpty()) return "ZOMBIE";
+        if (words.isEmpty()) return "???";
         return words.get(random.nextInt(words.size()));
     }
 
-    // 필요하면, 강제로 파일 다시 읽어오는 메서드 (옵션)
-    public synchronized void reloadFromFile() {
-        loadWordsFromFile();
-        if (words.isEmpty()) {
-            loadDefaultWords();
-        }
-    }
 }

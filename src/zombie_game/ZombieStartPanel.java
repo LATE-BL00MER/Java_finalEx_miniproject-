@@ -2,29 +2,35 @@ package zombie_game;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
+import java.awt.event.ActionEvent;
+import java.net.URL;
 
 public class ZombieStartPanel extends JPanel {
 
     private final ZombieFrame frame;
+    private Image backgroundImage;   // 시작 화면 배경
+
     private final JTextField nameField;
 
     public ZombieStartPanel(ZombieFrame frame) {
         this.frame = frame;
 
+        // 배경 이미지 먼저 로딩
+        loadBackgroundImage();
+
+        // 레이아웃 / 투명 설정
         setLayout(new BorderLayout());
-        setBackground(new Color(15, 15, 25));
+        setOpaque(false); // 우리가 직접 배경을 그릴 거라서
 
-        // 전체 여백
-        setBorder(BorderFactory.createEmptyBorder(50, 50, 50, 50));
+        // ---------- 상단 타이틀 ----------
+        JLabel titleLabel = new JLabel("Typing Zombie FPS", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("맑은 고딕", Font.BOLD, 40));
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(30, 10, 10, 10));
+        titleLabel.setOpaque(false);
+        add(titleLabel, BorderLayout.NORTH);
 
-        // 타이틀
-        JLabel title = new JLabel("좀비게임FPS", SwingConstants.CENTER);
-        title.setFont(new Font("맑은 고딕", Font.BOLD, 60));
-        title.setForeground(Color.WHITE);
-
-        // 가운데 패널
+        // ---------- 중앙: 이름 + 버튼들 ----------
         JPanel centerPanel = new JPanel();
         centerPanel.setOpaque(false);
         centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
@@ -32,131 +38,103 @@ public class ZombieStartPanel extends JPanel {
         // 이름 입력
         JPanel namePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         namePanel.setOpaque(false);
-        JLabel nameLabel = new JLabel("이름: ");
-        nameLabel.setFont(new Font("맑은 고딕", Font.PLAIN, 20));
+
+        JLabel nameLabel = new JLabel("플레이어 이름 : ");
+        nameLabel.setFont(new Font("맑은 고딕", Font.BOLD, 18));
         nameLabel.setForeground(Color.WHITE);
-        nameField = new JTextField(15);
-        nameField.setFont(new Font("맑은 고딕", Font.PLAIN, 20));
+
+        nameField = new JTextField(12);
+        nameField.setFont(new Font("맑은 고딕", Font.PLAIN, 18));
+
         namePanel.add(nameLabel);
         namePanel.add(nameField);
 
-        // 버튼들
-        JPanel buttonPanel = new JPanel(new GridLayout(5, 1, 15, 15));
-        buttonPanel.setOpaque(false);
-        JButton startBtn    = createStyledButton("게임 시작");
-        JButton rankBtn     = createStyledButton("명예의 전당");
-        JButton wordBtn     = createStyledButton("단어 저장");
-        JButton wordListBtn = createStyledButton("저장된 단어");
-        JButton exitBtn     = createStyledButton("종료");
-
-        buttonPanel.add(startBtn);
-        buttonPanel.add(rankBtn);
-        buttonPanel.add(wordBtn);
-        buttonPanel.add(wordListBtn);
-        buttonPanel.add(exitBtn);
-
-        // 버튼 컨테이너
-        JPanel btnContainer = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        btnContainer.setOpaque(false);
-        btnContainer.add(buttonPanel);
-
-        centerPanel.add(Box.createVerticalStrut(50));
         centerPanel.add(namePanel);
-        centerPanel.add(Box.createVerticalStrut(30));
-        centerPanel.add(btnContainer);
+        centerPanel.add(Box.createVerticalStrut(20));
 
-        add(title, BorderLayout.NORTH);
+        // 버튼 공통 스타일
+        Dimension btnSize = new Dimension(220, 40);
+        Font btnFont = new Font("맑은 고딕", Font.BOLD, 18);
+
+        JButton startBtn     = new JButton("게임 시작");
+        JButton wordSaveBtn  = new JButton("단어 저장");
+        JButton wordListBtn  = new JButton("저장된 단어 보기");
+        JButton rankBtn      = new JButton("랭킹 보기");
+        JButton exitBtn      = new JButton("게임 종료");
+
+        for (JButton b : new JButton[]{startBtn, wordSaveBtn, wordListBtn, rankBtn, exitBtn}) {
+            b.setPreferredSize(btnSize);
+            b.setFont(btnFont);
+        }
+
+        centerPanel.add(wrapButton(startBtn));
+        centerPanel.add(Box.createVerticalStrut(10));
+        centerPanel.add(wrapButton(wordSaveBtn));
+        centerPanel.add(Box.createVerticalStrut(10));
+        centerPanel.add(wrapButton(wordListBtn));
+        centerPanel.add(Box.createVerticalStrut(10));
+        centerPanel.add(wrapButton(rankBtn));
+        centerPanel.add(Box.createVerticalStrut(10));
+        centerPanel.add(wrapButton(exitBtn));
+
         add(centerPanel, BorderLayout.CENTER);
 
-        // ── 이벤트 리스너 ──
+        // ---------- 버튼 이벤트 ----------
 
         // 게임 시작
-        startBtn.addActionListener(e -> {
+        startBtn.addActionListener((ActionEvent e) -> {
             String name = nameField.getText().trim();
-            if (name.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "이름을 입력해주세요!");
-                return;
-            }
-            frame.startGame(name);
+            if (name.isEmpty()) name = "Player";
+            frame.showGamePanel(name);        // 기존에 쓰던 메서드 그대로 사용
         });
 
-        // 명예의 전당 -> 패널 전환
+        // 단어 저장(이미 구현해 둔 다이얼로그/기능 연결)
+        wordSaveBtn.addActionListener(e -> frame.showWordSaveDialog());
+
+        // 저장된 단어 보기
+        wordListBtn.addActionListener(e -> frame.showWordListDialog());
+
+        // 랭킹 보기
         rankBtn.addActionListener(e -> frame.showRankingPanel());
 
-        // 단어 추가
-        wordBtn.addActionListener(e -> {
-            String newWord = JOptionPane.showInputDialog(this, "추가할 단어:");
-            if (newWord != null && !newWord.trim().isEmpty()) {
-                WordManager.getInstance().addWord(newWord.toUpperCase());
-                JOptionPane.showMessageDialog(this, "단어 저장 완료!");
-            }
-        });
-
-        // 저장된 단어 목록 보기
-        wordListBtn.addActionListener(e -> showWordListDialog());
-
-        // 종료
+        // 게임 종료
         exitBtn.addActionListener(e -> System.exit(0));
-
-        // 엔터 키로 게임 시작
-        nameField.addActionListener(e -> startBtn.doClick());
     }
 
-    /** 저장된 단어들을 한 눈에 볼 수 있는 팝업 다이얼로그 */
-    private void showWordListDialog() {
-        java.util.List<String> words = WordManager.getInstance().getAllWords();
-
-        JDialog dialog = new JDialog(
-                SwingUtilities.getWindowAncestor(this),
-                "저장된 단어",
-                Dialog.ModalityType.APPLICATION_MODAL
-        );
-        dialog.setSize(400, 500);
-        dialog.setLocationRelativeTo(this);
-
-        DefaultListModel<String> model = new DefaultListModel<>();
-        for (String w : words) {
-            model.addElement(w);
-        }
-        JList<String> list = new JList<>(model);
-        list.setFont(new Font("맑은 고딕", Font.PLAIN, 18));
-
-        JScrollPane scrollPane = new JScrollPane(list);
-
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        JLabel label = new JLabel("현재 저장된 단어 목록", SwingConstants.CENTER);
-        label.setFont(new Font("맑은 고딕", Font.BOLD, 20));
-        mainPanel.add(label, BorderLayout.NORTH);
-        mainPanel.add(scrollPane, BorderLayout.CENTER);
-
-        JButton closeBtn = new JButton("닫기");
-        closeBtn.setFont(new Font("맑은 고딕", Font.PLAIN, 16));
-        closeBtn.addActionListener(e -> dialog.dispose());
-        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        bottom.add(closeBtn);
-        mainPanel.add(bottom, BorderLayout.SOUTH);
-
-        dialog.setContentPane(mainPanel);
-        dialog.setVisible(true);
+    /** 버튼 하나를 가운데 정렬해서 감싸는 패널 */
+    private JPanel wrapButton(JButton button) {
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        p.setOpaque(false);
+        p.add(button);
+        return p;
     }
 
-    private JButton createStyledButton(String text) {
-        JButton btn = new JButton(text);
-        btn.setFont(new Font("맑은 고딕", Font.BOLD, 20));
-        btn.setPreferredSize(new Dimension(250, 60));
-        btn.setFocusPainted(true);
-
-        // 탭 이동 후 엔터키 지원
-        btn.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                    btn.doClick();
-                }
+    /** StartPanel_background.png 불러오기 */
+    private void loadBackgroundImage() {
+        try {
+            // 파일 위치: src/zombie_game/images/StartPanel_background.png
+            URL url = getClass().getResource("images/StartPanel_background.png");
+            if (url != null) {
+                backgroundImage = new ImageIcon(url).getImage();
+            } else {
+                System.err.println("StartPanel_background.png 로드 실패");
             }
-        });
-        return btn;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        // 1) 배경 먼저 그린다
+        if (backgroundImage != null) {
+            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
+        } else {
+            g.setColor(Color.BLACK);
+            g.fillRect(0, 0, getWidth(), getHeight());
+        }
+
+        // 2) 그 위에 버튼/텍스트 등 컴포넌트 그리기
+        super.paintComponent(g);
     }
 }

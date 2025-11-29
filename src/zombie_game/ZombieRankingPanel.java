@@ -4,57 +4,55 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.List;
 
+/**
+ * 랭킹 화면
+ */
 public class ZombieRankingPanel extends JPanel {
+
     private final ZombieFrame frame;
     private final JTextArea rankingArea;
 
     public ZombieRankingPanel(ZombieFrame frame) {
         this.frame = frame;
+
         setLayout(new BorderLayout());
-        setBackground(new Color(20, 20, 30)); // 어두운 배경
+        setBackground(new Color(20, 20, 30));   // 어두운 배경
 
         // ── 타이틀 ──
-        JLabel title = new JLabel("🏆 명예의 전당 🏆", SwingConstants.CENTER);
-        title.setFont(new Font("맑은 고딕", Font.BOLD, 48));
+        JLabel title = new JLabel("🧟 명예의 전당 🧟", SwingConstants.CENTER);
+        title.setFont(new Font("맑은 고딕", Font.BOLD, 32));
         title.setForeground(Color.YELLOW);
-        title.setBorder(BorderFactory.createEmptyBorder(50, 0, 30, 0));
+        title.setBorder(BorderFactory.createEmptyBorder(20, 0, 10, 0));
         add(title, BorderLayout.NORTH);
 
-        // ── 랭킹 리스트 영역 ──
+        // ── 랭킹 영역 ──
         rankingArea = new JTextArea();
         rankingArea.setEditable(false);
-        rankingArea.setFont(new Font("Monospaced", Font.BOLD, 24));
-        rankingArea.setBackground(new Color(40, 40, 50));
+        rankingArea.setFont(new Font("맑은 고딕", Font.PLAIN, 18));
+        rankingArea.setBackground(new Color(40, 40, 60));
         rankingArea.setForeground(Color.WHITE);
-        rankingArea.setMargin(new Insets(30, 100, 30, 100)); // 여백
+        rankingArea.setMargin(new Insets(10, 20, 10, 20));
 
-        // 스크롤바 커스터마이징은 생략하고 기본 사용
         JScrollPane scrollPane = new JScrollPane(rankingArea);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder(0, 100, 0, 100));
-        scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder(10, 40, 10, 40));
         add(scrollPane, BorderLayout.CENTER);
 
-        // ── 하단 뒤로가기 버튼 ──
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        bottomPanel.setOpaque(false);
-        bottomPanel.setBorder(BorderFactory.createEmptyBorder(30, 0, 50, 0));
-
-        JButton backBtn = new JButton("뒤로가기");
-        backBtn.setFont(new Font("맑은 고딕", Font.BOLD, 20));
-        backBtn.setPreferredSize(new Dimension(200, 60));
-        backBtn.setFocusPainted(false);
-
-        // 버튼 클릭 시 시작 화면으로
+        // ── 하단 버튼 ──
+        JButton backBtn = new JButton("◀ 메인으로");
+        backBtn.setFont(new Font("맑은 고딕", Font.BOLD, 18));
         backBtn.addActionListener(e -> frame.showStartPanel());
 
-        bottomPanel.add(backBtn);
-        add(bottomPanel, BorderLayout.SOUTH);
+        JPanel bottom = new JPanel();
+        bottom.setBackground(new Color(20, 20, 30));
+        bottom.add(backBtn);
+        add(bottom, BorderLayout.SOUTH);
     }
 
-    /** 화면이 열릴 때마다 랭킹 정보를 갱신해서 보여줌 */
-    public void updateRanking() {
-        List<ScoreManager.ScoreEntry> list = ScoreManager.getInstance().getTopScores();
+    /** ScoreManager 에서 점수 읽어서 텍스트 갱신 */
+    public void refreshTable() {
+        List<ScoreManager.ScoreEntry> list =
+                ScoreManager.getInstance().getAllScores();
+
         StringBuilder sb = new StringBuilder();
 
         if (list.isEmpty()) {
@@ -64,9 +62,12 @@ public class ZombieRankingPanel extends JPanel {
             sb.append(String.format("%-6s  %-15s  %s\n", "순위", "이름", "점수"));
             sb.append("----------------------------------------\n");
             for (ScoreManager.ScoreEntry entry : list) {
-                sb.append(String.format(" %-6d  %-15s  %5d점\n", rank++, entry.name, entry.score));
+                sb.append(String.format(" %-6d  %-15s  %5d점\n",
+                        rank++, entry.name, entry.score));
             }
         }
+
         rankingArea.setText(sb.toString());
+        rankingArea.setCaretPosition(0);
     }
 }
