@@ -31,11 +31,14 @@ public class ZombieStartPanel extends JPanel {
         add(titleLabel, BorderLayout.NORTH);
 
         // ---------- 중앙: 이름 + 버튼들 ----------
-        JPanel centerPanel = new JPanel();
+        JPanel centerPanel = new JPanel(new GridBagLayout()); // ★ 그리드배치
         centerPanel.setOpaque(false);
-        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.fill = GridBagConstraints.NONE;
 
-        // 이름 입력
+        // 이름 입력 (가운데 정렬)
         JPanel namePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         namePanel.setOpaque(false);
 
@@ -49,33 +52,49 @@ public class ZombieStartPanel extends JPanel {
         namePanel.add(nameLabel);
         namePanel.add(nameField);
 
-        centerPanel.add(namePanel);
-        centerPanel.add(Box.createVerticalStrut(20));
+        // 이름 패널은 두 칸(0,0 / 1,0)을 가로로 합쳐서 중앙에
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        centerPanel.add(namePanel, gbc);
 
         // 버튼 공통 스타일
         Dimension btnSize = new Dimension(220, 40);
         Font btnFont = new Font("맑은 고딕", Font.BOLD, 18);
 
-        JButton startBtn     = new JButton("게임 시작");
-        JButton wordSaveBtn  = new JButton("단어 저장");
-        JButton wordListBtn  = new JButton("저장된 단어 보기");
-        JButton rankBtn      = new JButton("랭킹 보기");
-        JButton exitBtn      = new JButton("게임 종료");
+        JButton startBtn     = new JButton("게임 시작");        // 1번
+        JButton wordSaveBtn  = new JButton("단어 저장");        // 2번
+        JButton wordListBtn  = new JButton("저장된 단어 보기"); // 3번
+        JButton rankBtn      = new JButton("랭킹 보기");        // 4번
+        JButton exitBtn      = new JButton("게임 종료");        // 5번
 
         for (JButton b : new JButton[]{startBtn, wordSaveBtn, wordListBtn, rankBtn, exitBtn}) {
             b.setPreferredSize(btnSize);
             b.setFont(btnFont);
         }
 
-        centerPanel.add(wrapButton(startBtn));
-        centerPanel.add(Box.createVerticalStrut(10));
-        centerPanel.add(wrapButton(wordSaveBtn));
-        centerPanel.add(Box.createVerticalStrut(10));
-        centerPanel.add(wrapButton(wordListBtn));
-        centerPanel.add(Box.createVerticalStrut(10));
-        centerPanel.add(wrapButton(rankBtn));
-        centerPanel.add(Box.createVerticalStrut(10));
-        centerPanel.add(wrapButton(exitBtn));
+        // 1행: 1 2  (게임 시작 / 단어 저장)
+        gbc.gridwidth = 1;
+        gbc.gridy = 1;
+        gbc.gridx = 0;
+        centerPanel.add(startBtn, gbc);      // 1번
+
+        gbc.gridx = 1;
+        centerPanel.add(wordSaveBtn, gbc);   // 2번
+
+        // 2행: 3 4  (저장된 단어 보기 / 랭킹 보기)
+        gbc.gridy = 2;
+        gbc.gridx = 0;
+        centerPanel.add(wordListBtn, gbc);   // 3번
+
+        gbc.gridx = 1;
+        centerPanel.add(rankBtn, gbc);       // 4번
+
+        // 3행:   5   (게임 종료, 가운데)
+        gbc.gridy = 3;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        centerPanel.add(exitBtn, gbc);       // 5번
 
         add(centerPanel, BorderLayout.CENTER);
 
@@ -99,14 +118,6 @@ public class ZombieStartPanel extends JPanel {
 
         // 게임 종료
         exitBtn.addActionListener(e -> System.exit(0));
-    }
-
-    /** 버튼 하나를 가운데 정렬해서 감싸는 패널 */
-    private JPanel wrapButton(JButton button) {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        p.setOpaque(false);
-        p.add(button);
-        return p;
     }
 
     /** StartPanel_background.png 불러오기 */

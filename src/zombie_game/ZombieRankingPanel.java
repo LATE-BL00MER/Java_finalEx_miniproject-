@@ -19,7 +19,7 @@ public class ZombieRankingPanel extends JPanel {
         setBackground(new Color(20, 20, 30));   // 어두운 배경
 
         // ── 타이틀 ──
-        JLabel title = new JLabel("🧟 명예의 전당 🧟", SwingConstants.CENTER);
+        JLabel title = new JLabel("※명예의 전당※", SwingConstants.CENTER);
         title.setFont(new Font("맑은 고딕", Font.BOLD, 32));
         title.setForeground(Color.YELLOW);
         title.setBorder(BorderFactory.createEmptyBorder(20, 0, 10, 0));
@@ -48,7 +48,7 @@ public class ZombieRankingPanel extends JPanel {
         add(bottom, BorderLayout.SOUTH);
     }
 
-    /** ScoreManager 에서 점수 읽어서 텍스트 갱신 */
+    /** ScoreManager 에서 점수 읽어서 텍스트 갱신 (Top 10만 표시) */
     public void refreshTable() {
         List<ScoreManager.ScoreEntry> list =
                 ScoreManager.getInstance().getAllScores();
@@ -58,12 +58,16 @@ public class ZombieRankingPanel extends JPanel {
         if (list.isEmpty()) {
             sb.append("\n\n        아직 등록된 기록이 없습니다.\n");
         } else {
-            int rank = 1;
             sb.append(String.format("%-6s  %-15s  %s\n", "순위", "이름", "점수"));
             sb.append("----------------------------------------\n");
-            for (ScoreManager.ScoreEntry entry : list) {
+
+            // 🔥 최대 10등까지만 출력
+            int max = Math.min(10, list.size());
+            for (int i = 0; i < max; i++) {
+                ScoreManager.ScoreEntry entry = list.get(i);
+                int rank = i + 1;
                 sb.append(String.format(" %-6d  %-15s  %5d점\n",
-                        rank++, entry.name, entry.score));
+                        rank, entry.name, entry.score));
             }
         }
 
