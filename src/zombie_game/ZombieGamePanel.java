@@ -78,6 +78,7 @@ public class ZombieGamePanel extends JPanel {
     private int bossSpawnCountThisRound = 0;
     private static final int[] BOSS_SPAWN_LIMIT = {0, 2, 3, 5};
 
+
     // ---------------- 내부 클래스 ----------------
 
     private static class Zombie {
@@ -515,11 +516,21 @@ public class ZombieGamePanel extends JPanel {
     }
 
     private void spawnBoss(int round) {
-        String[] bossWords = {"거대좀비", "악취공격", "최후심판"};
+        // 🔥 항상 3개의 단어를 사용하는 보스
+        String[] bossWords = BossWordManager.getInstance().getRandomBossWords(3);
+
+        // 파일이 없거나 로딩 실패했을 때 대비 기본값
+        if (bossWords == null || bossWords.length == 0) {
+            bossWords = new String[]{"핵펀치", "좀비대군", "도시붕괴"};
+        }
+
         int xPos = getWidth() / 2;
         bossZombie = new BossZombie(zombieIdSeq++, bossWords, 100.0, xPos);
         bossSpawnCountThisRound++;
     }
+
+
+
 
     // ---------------- 그리기 ----------------
 
