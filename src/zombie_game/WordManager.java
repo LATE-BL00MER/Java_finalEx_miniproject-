@@ -37,12 +37,6 @@ public class WordManager {
         words.clear();
         File file = new File(WORD_FILE);
 
-        if (!file.exists()) {
-            System.err.println("⚠ word.txt 파일이 존재하지 않음 → 새로 생성합니다.");
-            saveWordsToFile();   // 빈 파일 생성
-            return;
-        }
-
         try (BufferedReader br = new BufferedReader(
                 new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
 

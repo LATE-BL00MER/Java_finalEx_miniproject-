@@ -50,7 +50,13 @@ public class ZombieGamePanel extends JPanel {
 
     // 이미지들
     private Image gunImage;
-    private Image backgroundImage;
+
+    // 라운드별 배경
+    private Image backgroundImage1;   // round 1 기본 배경
+    private Image backgroundImage2;   // round 2 배경
+    private Image backgroundImage3;   // round 3 배경
+    private Image backgroundImage;    // 현재 실제로 그릴 배경
+
     private final Image[] zombieImages = new Image[4];
     private Image bossImage;
 
@@ -298,6 +304,19 @@ public class ZombieGamePanel extends JPanel {
         updateHud();
     }
 
+    // 🔥 라운드 번호에 따라 배경 이미지 바꾸는 함수
+    private void setupRound(int round) {
+        if (round == 1) {
+            backgroundImage = backgroundImage1;
+        } else if (round == 2) {
+            backgroundImage = (backgroundImage2 != null) ? backgroundImage2 : backgroundImage1;
+        } else if (round == 3) {
+            backgroundImage = (backgroundImage3 != null) ? backgroundImage3 : backgroundImage1;
+        } else {
+            backgroundImage = backgroundImage1;
+        }
+    }
+
     // ---------------- 게임 시작 / 라운드 ----------------
 
     public void startNewGame(String name) {
@@ -320,6 +339,9 @@ public class ZombieGamePanel extends JPanel {
         this.screenShakeFrames = 0;
 
         roundManager.reset();
+
+        // 🔥 1라운드로 초기화된 상태에서 배경 세팅
+        setupRound(roundManager.getRound());
 
         updateHud();
         updateHearts();
@@ -528,9 +550,6 @@ public class ZombieGamePanel extends JPanel {
         bossZombie = new BossZombie(zombieIdSeq++, bossWords, 100.0, xPos);
         bossSpawnCountThisRound++;
     }
-
-
-
 
     // ---------------- 그리기 ----------------
 
@@ -920,6 +939,10 @@ public class ZombieGamePanel extends JPanel {
                     bullets.clear();   // 라운드 넘어갈 때 한 번 더 초기화
                     tickCount = 0;
                     damageCooldownTicks = 0;
+
+                    // 🔥 새 라운드 번호에 맞는 배경으로 교체
+                    setupRound(roundManager.getRound());
+
                     resetBossForNewRound();
                     startRoundEffect();
                 }
@@ -1011,6 +1034,10 @@ public class ZombieGamePanel extends JPanel {
                 bullets.clear();       // 다음 라운드 시작 전에 한 번 더 초기화
                 tickCount = 0;
                 damageCooldownTicks = 0;
+
+                // 🔥 새 라운드 번호에 맞는 배경으로 교체
+                setupRound(roundManager.getRound());
+
                 resetBossForNewRound();
                 startRoundEffect();
             }
@@ -1044,7 +1071,6 @@ public class ZombieGamePanel extends JPanel {
 
         Object[] message = {
                 "게임이 일시정지되었습니다.",
-                "ESC로도 이 창이 뜹니다.",
                 muteBtn
         };
         String[] options = {"계속하기", "메인으로"};
@@ -1161,9 +1187,24 @@ public class ZombieGamePanel extends JPanel {
         } catch (Exception ex) { ex.printStackTrace(); }
 
         try {
-            URL bgUrl = getClass().getResource("images/ZombieBackground.jpg");
-            if (bgUrl != null) backgroundImage = new ImageIcon(bgUrl).getImage();
-            else System.err.println("ZombieBackground.jpg 로드 실패");
-        } catch (Exception ex) { ex.printStackTrace(); }
+            URL bg1 = getClass().getResource("images/ZombieBackground.jpg");      // Round1
+            if (bg1 != null) {
+                backgroundImage1 = new ImageIcon(bg1).getImage();
+            }
+
+            URL bg2 = getClass().getResource("images/zombieBackground_2.jpg");    // Round2
+            if (bg2 != null) {
+                backgroundImage2 = new ImageIcon(bg2).getImage();
+            }
+
+            URL bg3 = getClass().getResource("images/zombieBackground_3.jpg");    // Round3
+            if (bg3 != null) {
+                backgroundImage3 = new ImageIcon(bg3).getImage();
+            }
+
+            // 게임 시작 시 Round1 배경을 기본값으로
+            backgroundImage = backgroundImage1;
+
+        } catch (Exception ignored) {}
     }
 }
