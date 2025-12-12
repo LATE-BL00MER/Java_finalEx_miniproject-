@@ -11,6 +11,7 @@ public class ZombieStartPanel extends JPanel {
     private Image backgroundImage;   // 시작 화면 배경
 
     private final JTextField nameField;
+    private final JButton bgmBtn;
 
     public ZombieStartPanel(ZombieFrame frame) {
         this.frame = frame;
@@ -68,6 +69,14 @@ public class ZombieStartPanel extends JPanel {
         JButton rankBtn      = new JButton("랭킹 보기");        // 4번
         JButton exitBtn      = new JButton("게임 종료");        // 5번
 
+        // BGM 토글 버튼 (StartPanel에서도 음악 On/Off)
+        bgmBtn = new JButton(frame.isBgmMuted() ? "🔇 음악 켜기" : "🔊 음악 끄기");
+        bgmBtn.setFont(new Font("맑은 고딕", Font.BOLD, 14));
+        bgmBtn.addActionListener(e -> {
+            frame.toggleBgmMute();
+            syncBgmButton();
+        });
+
         for (JButton b : new JButton[]{startBtn, wordSaveBtn, wordListBtn, rankBtn, exitBtn}) {
             b.setPreferredSize(btnSize);
             b.setFont(btnFont);
@@ -98,12 +107,26 @@ public class ZombieStartPanel extends JPanel {
 
         add(centerPanel, BorderLayout.CENTER);
 
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        bottomPanel.setOpaque(false);
+        bottomPanel.add(bgmBtn);
+        add(bottomPanel, BorderLayout.SOUTH);
+
         // ---------- 버튼 이벤트 ----------
 
         // 게임 시작
         startBtn.addActionListener((ActionEvent e) -> {
             String name = nameField.getText().trim();
-            if (name.isEmpty()) name = "Player";
+            if (name.isEmpty()) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "이름을 입력해야 게임을 시작할 수 있습니다.",
+                        "알림",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                nameField.requestFocus();
+                return;
+            }
             frame.showGamePanel(name);        // 기존에 쓰던 메서드 그대로 사용
         });
 
@@ -118,6 +141,13 @@ public class ZombieStartPanel extends JPanel {
 
         // 게임 종료
         exitBtn.addActionListener(e -> System.exit(0));
+    }
+
+    /** StartPanel BGM 버튼 텍스트 동기화 */
+    public void syncBgmButton() {
+        if (bgmBtn != null) {
+            bgmBtn.setText(frame.isBgmMuted() ? "🔇 음악 켜기" : "🔊 음악 끄기");
+        }
     }
 
     /** StartPanel_background.png 불러오기 */

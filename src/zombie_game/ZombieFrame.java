@@ -17,6 +17,10 @@ public class ZombieFrame extends JFrame {
     private final ZombieGamePanel    gamePanel;
     private final ZombieRankingPanel rankingPanel;
 
+    // ================= BGM (Start/Game 공통) =================
+    private final AudioPlayer bgmPlayer;
+    private boolean bgmMuted = false;
+
     public ZombieFrame() {
         setTitle("타이핑 좀비 FPS");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -35,6 +39,12 @@ public class ZombieFrame extends JFrame {
 
         setContentPane(cardPanel);
 
+        // --------- BGM 시작 (Start/Game 공통) ---------
+        bgmPlayer = new AudioPlayer("bgm.wav");
+        if (!bgmMuted) {
+            bgmPlayer.playLoop();
+        }
+
         // 처음 화면은 START
         showStartPanel();
 
@@ -43,6 +53,11 @@ public class ZombieFrame extends JFrame {
 
     /** 시작 화면으로 전환 */
     public void showStartPanel() {
+        // StartPanel로 돌아왔을 때도 현재 BGM 상태를 유지
+        if (!bgmMuted && bgmPlayer != null) {
+            bgmPlayer.resume();
+        }
+        startPanel.syncBgmButton();
         cardLayout.show(cardPanel, "START");
     }
 
@@ -133,4 +148,43 @@ public class ZombieFrame extends JFrame {
                 JOptionPane.PLAIN_MESSAGE
         );
     }
+
+    // ====================================================
+    //                    BGM 제어
+    // ====================================================
+    public boolean isBgmMuted() {
+        return bgmMuted;
+    }
+
+    public void toggleBgmMute() {
+        setBgmMuted(!bgmMuted);
+    }
+
+    public void setBgmMuted(boolean muted) {
+        this.bgmMuted = muted;
+        if (bgmPlayer == null) return;
+
+        if (bgmMuted) {
+            bgmPlayer.pause();
+        } else {
+            // 다시 켤 때는 루프로 재생 (일시정지/화면전환 후에도 안정적으로 동작)
+            bgmPlayer.playLoop();
+        }
+
+        // 버튼 상태 동기화
+        startPanel.syncBgmButton();
+    }
+
+    public void pauseBgmForPauseMenu() {
+        if (!bgmMuted && bgmPlayer != null) bgmPlayer.pause();
+    }
+
+    public void resumeBgmForPauseMenu() {
+        if (!bgmMuted && bgmPlayer != null) bgmPlayer.resume();
+    }
+
+    public AudioPlayer getBgmPlayer() {
+        return bgmPlayer;
+    }
+
 }

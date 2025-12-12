@@ -8,14 +8,12 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class ZombieGamePanel extends JPanel {
+public class  ZombieGamePanel extends JPanel {
 
     private final ZombieFrame frame;
     private final RoundManager roundManager;
 
-    // BGM 재생용
-    private AudioPlayer bgmPlayer;
-    private boolean bgmMuted = false;   // true면 음소거 상태
+    // BGM은 ZombieFrame에서 공통으로 관리
 
     // HUD
     private final JLabel infoLabel;
@@ -206,10 +204,8 @@ public class ZombieGamePanel extends JPanel {
                 isPaused = false;
                 isCountingDown = false;
 
-                // 일시정지 해제 시, 음소거가 아니라면 BGM 재개
-                if (bgmPlayer != null && !bgmMuted) {
-                    bgmPlayer.resume();
-                }
+                // 일시정지 해제 시 BGM 재개 (현재 음소거 상태면 재개하지 않음)
+                frame.resumeBgmForPauseMenu();
 
                 startGameThread();
                 inputField.requestFocusInWindow();
@@ -293,12 +289,7 @@ public class ZombieGamePanel extends JPanel {
         getActionMap().put("togglePause", new AbstractAction() {
             @Override public void actionPerformed(ActionEvent e) { togglePause(); }
         });
-
-        // BGM 로딩 및 반복 재생 시작
-        bgmPlayer = new AudioPlayer("bgm.wav"); // 프로젝트 루트에 bgm.wav
-        if (bgmPlayer != null && !bgmMuted) {
-            bgmPlayer.playLoop();
-        }
+        // BGM은 프레임에서 이미 재생 중 (필요 시 StartPanel/GamePanel에서 토글)
 
         updateHearts();
         updateHud();
@@ -349,10 +340,7 @@ public class ZombieGamePanel extends JPanel {
         inputField.setText("");
         inputField.requestFocus();
 
-        // 새 게임 시작 시 BGM도 다시 루프
-        if (bgmPlayer != null && !bgmMuted) {
-            bgmPlayer.playLoop();
-        }
+        // 새 게임 시작 시 BGM은 프레임에서 그대로 유지
 
         startRoundEffect();
     }
@@ -1056,17 +1044,14 @@ public class ZombieGamePanel extends JPanel {
 
         isPaused = true;
         stopGameThread();
+        frame.pauseBgmForPauseMenu();
         viewPanel.repaint();
 
-        JButton muteBtn = new JButton(bgmMuted ? "🔇 음악 켜기" : "🔊 음악 끄기");
+        JButton muteBtn = new JButton(frame.isBgmMuted() ? "🔇 음악 켜기" : "🔊 음악 끄기");
 
         muteBtn.addActionListener(e -> {
-            bgmMuted = !bgmMuted;
-            if (bgmPlayer != null) {
-                if (bgmMuted) bgmPlayer.pause();
-                else bgmPlayer.resume();
-            }
-            muteBtn.setText(bgmMuted ? "🔇 음악 켜기" : "🔊 음악 끄기");
+            frame.toggleBgmMute();
+            muteBtn.setText(frame.isBgmMuted() ? "🔇 음악 켜기" : "🔊 음악 끄기");
         });
 
         Object[] message = {
@@ -1088,7 +1073,6 @@ public class ZombieGamePanel extends JPanel {
 
         if (choice == 1) {
             stopGameThread();
-            if (bgmPlayer != null) bgmPlayer.stop();
             frame.showStartPanel();
             return;
         }
@@ -1116,7 +1100,6 @@ public class ZombieGamePanel extends JPanel {
         if (choice == 0) {
             startNewGame(playerName);
         } else {
-            if (bgmPlayer != null) bgmPlayer.stop();
             frame.showStartPanel();
         }
     }
@@ -1128,7 +1111,7 @@ public class ZombieGamePanel extends JPanel {
         String[] options = {"다시하기", "메인으로"};
         int choice = JOptionPane.showOptionDialog(
                 this,
-                "생존!\n\n당신은 끝까지 살아남았습니다.\n최종 점수: " + score + "\n도달 라운드: " + roundManager.getRound(),
+                "생존!\n\n당신은 끝까지 살아남았습니다.\n최종 점수: " + score + "\n도달 라운드: " + Math.max(1, roundManager.getRound() - 1),
                 "생존!",
                 JOptionPane.DEFAULT_OPTION,
                 JOptionPane.INFORMATION_MESSAGE,
@@ -1140,7 +1123,6 @@ public class ZombieGamePanel extends JPanel {
         if (choice == 0) {
             startNewGame(playerName);
         } else {
-            if (bgmPlayer != null) bgmPlayer.stop();
             frame.showStartPanel();
         }
     }
