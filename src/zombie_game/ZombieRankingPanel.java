@@ -4,74 +4,111 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.List;
 
-/**
- * 랭킹 화면
- */
 public class ZombieRankingPanel extends JPanel {
 
     private final ZombieFrame frame;
-    private final JTextArea rankingArea;
+    private final JPanel listPanel;
 
     public ZombieRankingPanel(ZombieFrame frame) {
         this.frame = frame;
-
         setLayout(new BorderLayout());
-        setBackground(new Color(20, 20, 30));   // 어두운 배경
+        setBackground(new Color(20, 20, 30));
 
-        // ── 타이틀 ──
-        JLabel title = new JLabel("※명예의 전당※", SwingConstants.CENTER);
-        title.setFont(new Font("맑은 고딕", Font.BOLD, 32));
-        title.setForeground(Color.YELLOW);
-        title.setBorder(BorderFactory.createEmptyBorder(20, 0, 10, 0));
+        // ===== 상단 타이틀 =====
+        JLabel title = new JLabel("🏆 명예의 전당 🏆", SwingConstants.CENTER);
+        title.setFont(new Font("맑은 고딕", Font.BOLD, 36));
+        title.setForeground(new Color(255, 215, 0));
+        title.setBorder(BorderFactory.createEmptyBorder(30, 0, 20, 0));
         add(title, BorderLayout.NORTH);
 
-        // ── 랭킹 영역 ──
-        rankingArea = new JTextArea();
-        rankingArea.setEditable(false);
-        rankingArea.setFont(new Font("맑은 고딕", Font.PLAIN, 18));
-        rankingArea.setBackground(new Color(40, 40, 60));
-        rankingArea.setForeground(Color.WHITE);
-        rankingArea.setMargin(new Insets(10, 20, 10, 20));
+        // ===== 리스트 패널 =====
+        listPanel = new JPanel();
+        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        listPanel.setOpaque(false);
 
-        JScrollPane scrollPane = new JScrollPane(rankingArea);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder(10, 40, 10, 40));
-        add(scrollPane, BorderLayout.CENTER);
+        JScrollPane scroll = new JScrollPane(listPanel);
+        scroll.setBorder(null);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
 
-        // ── 하단 버튼 ──
+        JPanel centerWrap = new JPanel(new GridBagLayout());
+        centerWrap.setOpaque(false);
+        centerWrap.add(scroll);
+
+        add(centerWrap, BorderLayout.CENTER);
+
+        // ===== 하단 버튼 =====
         JButton backBtn = new JButton("◀ 메인으로");
         backBtn.setFont(new Font("맑은 고딕", Font.BOLD, 18));
+        backBtn.setFocusPainted(false);
         backBtn.addActionListener(e -> frame.showStartPanel());
 
         JPanel bottom = new JPanel();
-        bottom.setBackground(new Color(20, 20, 30));
+        bottom.setOpaque(false);
+        bottom.setBorder(BorderFactory.createEmptyBorder(20, 0, 30, 0));
         bottom.add(backBtn);
+
         add(bottom, BorderLayout.SOUTH);
     }
 
-    /** ScoreManager 에서 점수 읽어서 텍스트 갱신 (Top 10만 표시) */
+    /** 랭킹 갱신 */
     public void refreshTable() {
-        List<ScoreManager.ScoreEntry> list =
-                ScoreManager.getInstance().getAllScores();
+        listPanel.removeAll();
 
-        StringBuilder sb = new StringBuilder();
+        // ✅ ScoreManager 구조에 맞춤: 상위 10개 가져오기
+        List<ScoreManager.ScoreEntry> list = ScoreManager.getInstance().getTopScores(10);
 
-        if (list.isEmpty()) {
-            sb.append("\n\n        아직 등록된 기록이 없습니다.\n");
-        } else {
-            sb.append(String.format("%-6s  %-15s  %s\n", "순위", "이름", "점수"));
-            sb.append("----------------------------------------\n");
+        // 헤더
+        listPanel.add(createRow("순위", "이름", "점수", true));
 
-            // 🔥 최대 10등까지만 출력
-            int max = Math.min(10, list.size());
-            for (int i = 0; i < max; i++) {
-                ScoreManager.ScoreEntry entry = list.get(i);
-                int rank = i + 1;
-                sb.append(String.format(" %-6d  %-15s  %5d점\n",
-                        rank, entry.name, entry.score));
-            }
+        int rank = 1;
+        for (ScoreManager.ScoreEntry e : list) {
+            listPanel.add(createRow(
+                    String.valueOf(rank),
+                    e.name,
+                    e.score + " 점",
+                    false
+            ));
+            rank++;
         }
 
-        rankingArea.setText(sb.toString());
-        rankingArea.setCaretPosition(0);
+        listPanel.revalidate();
+        listPanel.repaint();
+    }
+
+    /** 한 줄(row) */
+    private JPanel createRow(String rank, String name, String score, boolean header) {
+        JPanel row = new JPanel(new GridLayout(1, 3));
+        row.setMaximumSize(new Dimension(600, 45));
+        row.setOpaque(false);
+        row.setBorder(BorderFactory.createEmptyBorder(5, 20, 5, 20));
+
+        Font font = header
+                ? new Font("맑은 고딕", Font.BOLD, 18)
+                : new Font("맑은 고딕", Font.PLAIN, 17);
+
+        Color color = header ? Color.LIGHT_GRAY : Color.WHITE;
+
+        // Top 3 강조
+        if (!header) {
+            int r = Integer.parseInt(rank);
+            if (r == 1) color = new Color(255, 215, 0);      // gold
+            else if (r == 2) color = new Color(192, 192, 192); // silver
+            else if (r == 3) color = new Color(205, 127, 50);  // bronze
+        }
+
+        row.add(makeLabel(rank, font, color, SwingConstants.CENTER));
+        row.add(makeLabel(name, font, color, SwingConstants.CENTER));
+        row.add(makeLabel(score, font, color, SwingConstants.CENTER));
+
+        return row;
+    }
+
+    private JLabel makeLabel(String text, Font font, Color color, int align) {
+        JLabel label = new JLabel(text, align);
+        label.setFont(font);
+        label.setForeground(color);
+        return label;
     }
 }

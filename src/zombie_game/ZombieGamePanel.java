@@ -1137,7 +1137,7 @@ public class  ZombieGamePanel extends JPanel {
     private void updateHearts() {
         heartPanel.removeAll();
         for (int i = 0; i < 5; i++) {
-            JLabel heart = new JLabel(i < hp ? "❤️" : "🖤");
+            JLabel heart = new JLabel(i < hp ? "❤️" : "❌");
             heartPanel.add(heart);
         }
         heartPanel.revalidate();
