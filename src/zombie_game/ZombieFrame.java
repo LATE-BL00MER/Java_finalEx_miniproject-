@@ -7,14 +7,15 @@ import java.util.List;
 /**
  * 메인 프레임
  * - START / GAME / RANK 3개 화면을 CardLayout으로 전환
+ * - BGM은 Frame에서 단일 관리 (Start/Game 공통)
  */
 public class ZombieFrame extends JFrame {
 
     private final CardLayout cardLayout = new CardLayout();
-    private final JPanel cardPanel   = new JPanel(cardLayout);
+    private final JPanel cardPanel = new JPanel(cardLayout);
 
-    private final ZombieStartPanel   startPanel;
-    private final ZombieGamePanel    gamePanel;
+    private final ZombieStartPanel startPanel;
+    private final ZombieGamePanel gamePanel;
     private final ZombieRankingPanel rankingPanel;
 
     // ================= BGM (Start/Game 공통) =================
@@ -32,32 +33,29 @@ public class ZombieFrame extends JFrame {
         gamePanel    = new ZombieGamePanel(this);
         rankingPanel = new ZombieRankingPanel(this);
 
-        // 카드 레이아웃에 등록
-        cardPanel.add(startPanel,   "START");
-        cardPanel.add(gamePanel,    "GAME");
+        // 카드 레이아웃 등록
+        cardPanel.add(startPanel, "START");
+        cardPanel.add(gamePanel, "GAME");
         cardPanel.add(rankingPanel, "RANK");
-
         setContentPane(cardPanel);
 
-        // --------- BGM 시작 (Start/Game 공통) ---------
+        // --------- BGM: 여기서 1번만 시작 ---------
         bgmPlayer = new AudioPlayer("bgm.wav");
-        if (!bgmMuted) {
-            bgmPlayer.playLoop();
-        }
+        bgmPlayer.playLoop();            // 루프는 1번만 걸어두고
+        if (bgmMuted) bgmPlayer.pause();  // muted면 바로 pause
 
-        // 처음 화면은 START
         showStartPanel();
-
         setVisible(true);
     }
 
     /** 시작 화면으로 전환 */
     public void showStartPanel() {
-        // StartPanel로 돌아왔을 때도 현재 BGM 상태를 유지
-        if (!bgmMuted && bgmPlayer != null) {
-            bgmPlayer.resume();
-        }
-        startPanel.syncBgmButton();
+        // Start로 돌아올 때, muted가 아니면 재개
+        if (!bgmMuted && bgmPlayer != null) bgmPlayer.resume();
+
+        // StartPanel 아이콘 상태 동기화
+        startPanel.syncSoundIcon();
+
         cardLayout.show(cardPanel, "START");
     }
 
@@ -67,15 +65,13 @@ public class ZombieFrame extends JFrame {
             playerName = "Player";
         }
 
-        // ★ 더 이상 setPlayerName() 호출 안 함
         gamePanel.startNewGame(playerName);
-
         cardLayout.show(cardPanel, "GAME");
     }
 
     /** 랭킹 화면으로 전환 */
     public void showRankingPanel() {
-        rankingPanel.refreshTable();           // 전환 전에 목록 갱신
+        rankingPanel.refreshTable();
         cardLayout.show(cardPanel, "RANK");
     }
 
@@ -95,14 +91,10 @@ public class ZombieFrame extends JFrame {
                     JOptionPane.PLAIN_MESSAGE
             );
 
-            if (input == null) {      // 취소
-                break;
-            }
+            if (input == null) break;
 
             input = input.trim();
-            if (input.isEmpty()) {
-                continue;
-            }
+            if (input.isEmpty()) continue;
 
             wm.addWord(input);
         }
@@ -131,9 +123,7 @@ public class ZombieFrame extends JFrame {
         }
 
         StringBuilder sb = new StringBuilder();
-        for (String w : list) {
-            sb.append(w).append('\n');
-        }
+        for (String w : list) sb.append(w).append('\n');
 
         JTextArea area = new JTextArea(sb.toString(), 20, 30);
         area.setEditable(false);
@@ -152,10 +142,12 @@ public class ZombieFrame extends JFrame {
     // ====================================================
     //                    BGM 제어
     // ====================================================
+
     public boolean isBgmMuted() {
         return bgmMuted;
     }
 
+    /** StartPanel에서 아이콘 클릭하면 이거 호출 */
     public void toggleBgmMute() {
         setBgmMuted(!bgmMuted);
     }
@@ -164,21 +156,19 @@ public class ZombieFrame extends JFrame {
         this.bgmMuted = muted;
         if (bgmPlayer == null) return;
 
-        if (bgmMuted) {
-            bgmPlayer.pause();
-        } else {
-            // 다시 켤 때는 루프로 재생 (일시정지/화면전환 후에도 안정적으로 동작)
-            bgmPlayer.playLoop();
-        }
+        if (bgmMuted) bgmPlayer.pause();
+        else bgmPlayer.resume();
 
-        // 버튼 상태 동기화
-        startPanel.syncBgmButton();
+        // StartPanel 아이콘 동기화
+        startPanel.syncSoundIcon();
     }
 
+    /** (GamePanel ESC 일시정지 메뉴에서 필요하면 사용) */
     public void pauseBgmForPauseMenu() {
         if (!bgmMuted && bgmPlayer != null) bgmPlayer.pause();
     }
 
+    /** (GamePanel ESC 일시정지 메뉴에서 필요하면 사용) */
     public void resumeBgmForPauseMenu() {
         if (!bgmMuted && bgmPlayer != null) bgmPlayer.resume();
     }
@@ -186,5 +176,4 @@ public class ZombieFrame extends JFrame {
     public AudioPlayer getBgmPlayer() {
         return bgmPlayer;
     }
-
 }

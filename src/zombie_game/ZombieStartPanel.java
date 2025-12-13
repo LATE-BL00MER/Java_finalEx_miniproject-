@@ -2,44 +2,88 @@ package zombie_game;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.net.URL;
+import java.awt.event.*;
+import java.io.File;
 
 public class ZombieStartPanel extends JPanel {
 
     private final ZombieFrame frame;
-    private Image backgroundImage;   // 시작 화면 배경
 
+    // 사운드 아이콘
+    private JLabel soundLabel;
+    private ImageIcon speakerIcon;
+    private ImageIcon muteIcon;
+
+    // 배경
+    private Image backgroundImage;
+
+    // 이름 입력
     private final JTextField nameField;
-    private final JButton bgmBtn;
+
+    // ====== 여기서 아이콘 크기만 바꾸면 됨 ======
+    private static final int SOUND_ICON_SIZE = 32; // 24~40 추천
 
     public ZombieStartPanel(ZombieFrame frame) {
         this.frame = frame;
 
-        // 배경 이미지 먼저 로딩
-        loadBackgroundImage();
-
-        // 레이아웃 / 투명 설정
         setLayout(new BorderLayout());
-        setOpaque(false); // 우리가 직접 배경을 그릴 거라서
+        setOpaque(false);
 
-        // ---------- 상단 타이틀 ----------
+        // ===== 이미지 로딩(파일 경로 방식) =====
+        loadImagesFromFileSystem();
+
+        // ================= 상단 바 =================
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setOpaque(false);
+        topBar.setBorder(BorderFactory.createEmptyBorder(20, 20, 10, 20));
+
         JLabel titleLabel = new JLabel("Typing Zombie FPS", SwingConstants.CENTER);
         titleLabel.setFont(new Font("맑은 고딕", Font.BOLD, 40));
         titleLabel.setForeground(Color.WHITE);
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(30, 10, 10, 10));
-        titleLabel.setOpaque(false);
-        add(titleLabel, BorderLayout.NORTH);
 
-        // ---------- 중앙: 이름 + 버튼들 ----------
-        JPanel centerPanel = new JPanel(new GridBagLayout()); // ★ 그리드배치
+        soundLabel = new JLabel();
+        soundLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        soundLabel.setPreferredSize(new Dimension(SOUND_ICON_SIZE + 8, SOUND_ICON_SIZE + 8));
+        soundLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        soundLabel.setVerticalAlignment(SwingConstants.CENTER);
+
+        syncSoundIcon();
+
+        JPanel soundWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        soundWrap.setOpaque(false);
+        soundWrap.add(soundLabel);
+
+        topBar.add(titleLabel, BorderLayout.CENTER);
+        topBar.add(soundWrap, BorderLayout.EAST);
+
+        add(topBar, BorderLayout.NORTH);
+
+        // ===== 사운드 토글: mouseReleased(클릭 뗄 때) =====
+        soundLabel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                // 눌림 느낌(선택)
+                soundLabel.setBorder(BorderFactory.createLineBorder(new Color(255, 255, 255, 80)));
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                soundLabel.setBorder(null);
+
+                frame.toggleBgmMute();
+                syncSoundIcon();
+            }
+        });
+
+        // ================= 중앙: 이름 + 버튼 =================
+        JPanel centerPanel = new JPanel(new GridBagLayout());
         centerPanel.setOpaque(false);
+
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.anchor = GridBagConstraints.CENTER;
-        gbc.fill = GridBagConstraints.NONE;
 
-        // 이름 입력 (가운데 정렬)
+        // 이름 입력
         JPanel namePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         namePanel.setOpaque(false);
 
@@ -53,69 +97,53 @@ public class ZombieStartPanel extends JPanel {
         namePanel.add(nameLabel);
         namePanel.add(nameField);
 
-        // 이름 패널은 두 칸(0,0 / 1,0)을 가로로 합쳐서 중앙에
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.gridwidth = 2;
         centerPanel.add(namePanel, gbc);
 
-        // 버튼 공통 스타일
+        // 버튼
         Dimension btnSize = new Dimension(220, 40);
         Font btnFont = new Font("맑은 고딕", Font.BOLD, 18);
 
-        JButton startBtn     = new JButton("게임 시작");        // 1번
-        JButton wordSaveBtn  = new JButton("단어 저장");        // 2번
-        JButton wordListBtn  = new JButton("저장된 단어 보기"); // 3번
-        JButton rankBtn      = new JButton("랭킹 보기");        // 4번
-        JButton exitBtn      = new JButton("게임 종료");        // 5번
-
-        // BGM 토글 버튼 (StartPanel에서도 음악 On/Off)
-        bgmBtn = new JButton(frame.isBgmMuted() ? "🔇 음악 켜기" : "🔊 음악 끄기");
-        bgmBtn.setFont(new Font("맑은 고딕", Font.BOLD, 14));
-        bgmBtn.addActionListener(e -> {
-            frame.toggleBgmMute();
-            syncBgmButton();
-        });
+        JButton startBtn     = new JButton("게임 시작");
+        JButton wordSaveBtn  = new JButton("단어 저장");
+        JButton wordListBtn  = new JButton("저장된 단어 보기");
+        JButton rankBtn      = new JButton("랭킹 보기");
+        JButton exitBtn      = new JButton("게임 종료");
 
         for (JButton b : new JButton[]{startBtn, wordSaveBtn, wordListBtn, rankBtn, exitBtn}) {
             b.setPreferredSize(btnSize);
             b.setFont(btnFont);
         }
 
-        // 1행: 1 2  (게임 시작 / 단어 저장)
+        // 1행: 시작 / 단어 저장
         gbc.gridwidth = 1;
         gbc.gridy = 1;
         gbc.gridx = 0;
-        centerPanel.add(startBtn, gbc);      // 1번
+        centerPanel.add(startBtn, gbc);
 
         gbc.gridx = 1;
-        centerPanel.add(wordSaveBtn, gbc);   // 2번
+        centerPanel.add(wordSaveBtn, gbc);
 
-        // 2행: 3 4  (저장된 단어 보기 / 랭킹 보기)
+        // 2행: 단어 보기 / 랭킹
         gbc.gridy = 2;
         gbc.gridx = 0;
-        centerPanel.add(wordListBtn, gbc);   // 3번
+        centerPanel.add(wordListBtn, gbc);
 
         gbc.gridx = 1;
-        centerPanel.add(rankBtn, gbc);       // 4번
+        centerPanel.add(rankBtn, gbc);
 
-        // 3행:   5   (게임 종료, 가운데)
+        // 3행: 종료 (가운데)
         gbc.gridy = 3;
         gbc.gridx = 0;
         gbc.gridwidth = 2;
-        centerPanel.add(exitBtn, gbc);       // 5번
+        centerPanel.add(exitBtn, gbc);
 
         add(centerPanel, BorderLayout.CENTER);
 
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        bottomPanel.setOpaque(false);
-        bottomPanel.add(bgmBtn);
-        add(bottomPanel, BorderLayout.SOUTH);
-
-        // ---------- 버튼 이벤트 ----------
-
-        // 게임 시작
-        startBtn.addActionListener((ActionEvent e) -> {
+        // ================= 버튼 이벤트 =================
+        startBtn.addActionListener(e -> {
             String name = nameField.getText().trim();
             if (name.isEmpty()) {
                 JOptionPane.showMessageDialog(
@@ -124,58 +152,121 @@ public class ZombieStartPanel extends JPanel {
                         "알림",
                         JOptionPane.WARNING_MESSAGE
                 );
-                nameField.requestFocus();
+                nameField.requestFocusInWindow();
                 return;
             }
-            frame.showGamePanel(name);        // 기존에 쓰던 메서드 그대로 사용
+            frame.showGamePanel(name);
         });
 
-        // 단어 저장(이미 구현해 둔 다이얼로그/기능 연결)
         wordSaveBtn.addActionListener(e -> frame.showWordSaveDialog());
-
-        // 저장된 단어 보기
         wordListBtn.addActionListener(e -> frame.showWordListDialog());
-
-        // 랭킹 보기
         rankBtn.addActionListener(e -> frame.showRankingPanel());
-
-        // 게임 종료
         exitBtn.addActionListener(e -> System.exit(0));
     }
 
-    /** StartPanel BGM 버튼 텍스트 동기화 */
-    public void syncBgmButton() {
-        if (bgmBtn != null) {
-            bgmBtn.setText(frame.isBgmMuted() ? "🔇 음악 켜기" : "🔊 음악 끄기");
-        }
+    // =========================================================
+    //  파일 경로 기반 이미지 로딩 + 아이콘 리사이즈
+    // =========================================================
+    private void loadImagesFromFileSystem() {
+        // 경로 후보(당신 프로젝트에서 나올만한 경우들)
+        String speakerPath = findFirstExistingPath(
+                "src/zombie_game/images/speaker.png",
+                "src/images/speaker.png",
+                "images/speaker.png"
+        );
+        String mutePath = findFirstExistingPath(
+                "src/zombie_game/images/mute.png",
+                "src/images/mute.png",
+                "images/mute.png"
+        );
+        String bgPath = findFirstExistingPath(
+                "src/zombie_game/images/StartPanel_background.png",
+                "src/images/StartPanel_background.png",
+                "images/StartPanel_background.png"
+        );
+
+        speakerIcon = loadAndResizeIcon(speakerPath, SOUND_ICON_SIZE);
+        muteIcon    = loadAndResizeIcon(mutePath, SOUND_ICON_SIZE);
+
+        backgroundImage = loadImage(bgPath);
     }
 
-    /** StartPanel_background.png 불러오기 */
-    private void loadBackgroundImage() {
-        try {
-            // 파일 위치: src/zombie_game/images/StartPanel_background.png
-            URL url = getClass().getResource("images/StartPanel_background.png");
-            if (url != null) {
-                backgroundImage = new ImageIcon(url).getImage();
-            } else {
-                System.err.println("StartPanel_background.png 로드 실패");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+    private String findFirstExistingPath(String... candidates) {
+        String base = System.getProperty("user.dir");
+
+        for (String rel : candidates) {
+            File f1 = new File(rel);
+            if (f1.exists() && f1.isFile()) return f1.getAbsolutePath();
+
+            File f2 = new File(base, rel);
+            if (f2.exists() && f2.isFile()) return f2.getAbsolutePath();
         }
+        // 없으면 첫 후보를 그냥 반환(로그용). 실제 로딩에서 실패 처리됨.
+        return candidates.length > 0 ? candidates[0] : "";
     }
 
+    private ImageIcon loadAndResizeIcon(String absoluteOrRelPath, int size) {
+        if (absoluteOrRelPath == null || absoluteOrRelPath.isEmpty()) {
+            System.err.println("❌ 아이콘 경로가 비어있음");
+            return new ImageIcon();
+        }
+
+        File f = new File(absoluteOrRelPath);
+        if (!f.exists()) {
+            System.err.println("❌ 아이콘 파일 없음: " + absoluteOrRelPath);
+            return new ImageIcon();
+        }
+
+        ImageIcon origin = new ImageIcon(f.getAbsolutePath());
+        if (origin.getIconWidth() <= 0) {
+            System.err.println("❌ 아이콘 읽기 실패(파일은 존재): " + f.getAbsolutePath());
+            return new ImageIcon();
+        }
+
+        Image scaled = origin.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
+        return new ImageIcon(scaled);
+    }
+
+    private Image loadImage(String absoluteOrRelPath) {
+        if (absoluteOrRelPath == null || absoluteOrRelPath.isEmpty()) {
+            System.err.println("❌ 배경 경로가 비어있음");
+            return null;
+        }
+
+        File f = new File(absoluteOrRelPath);
+        if (!f.exists()) {
+            System.err.println("❌ 배경 파일 없음: " + absoluteOrRelPath);
+            return null;
+        }
+
+        ImageIcon icon = new ImageIcon(f.getAbsolutePath());
+        if (icon.getIconWidth() <= 0) {
+            System.err.println("❌ 배경 읽기 실패(파일은 존재): " + f.getAbsolutePath());
+            return null;
+        }
+        return icon.getImage();
+    }
+
+    // =========================================================
+    //  BGM 아이콘 동기화 (ZombieFrame에서 Start로 돌아올 때도 호출 가능)
+    // =========================================================
+    public void syncSoundIcon() {
+        if (soundLabel == null) return;
+        soundLabel.setIcon(frame.isBgmMuted() ? muteIcon : speakerIcon);
+    }
+
+    // =========================================================
+    //  페인팅
+    // =========================================================
     @Override
     protected void paintComponent(Graphics g) {
-        // 1) 배경 먼저 그린다
+        super.paintComponent(g);
+
         if (backgroundImage != null) {
             g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
         } else {
             g.setColor(Color.BLACK);
             g.fillRect(0, 0, getWidth(), getHeight());
         }
-
-        // 2) 그 위에 버튼/텍스트 등 컴포넌트 그리기
-        super.paintComponent(g);
     }
 }
