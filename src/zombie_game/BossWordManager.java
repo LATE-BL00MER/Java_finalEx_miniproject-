@@ -2,85 +2,76 @@ package zombie_game;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
-/**
- * boss_words.txt 에서 보스 단어 풀을 읽어오는 매니저
- *
- * - boss_words.txt 형식:
- *
- *   한 줄 = 한 단어
- *
- *   예)
- *   핵펀치
- *   좀비대군
- *   도시붕괴
- *   맹독안개
- *   광기폭주
- *   절망의비
- */
 public class BossWordManager {
 
+    // ✅ (추가) 싱글톤
     private static final BossWordManager instance = new BossWordManager();
-    public static BossWordManager getInstance() {
-        return instance;
-    }
+    public static BossWordManager getInstance() { return instance; }
 
-    // 보스가 쓸 수 있는 단어 전체 풀
     private final List<String> wordPool = new ArrayList<>();
     private final Random random = new Random();
 
+    // ✅ 생성자에서 자동 로드 (기존 실행 흐름 유지)
     private BossWordManager() {
-        loadFromFile();
+        loadFromFile("boss_words.txt");
     }
 
-    /** boss_words.txt 한 줄씩 읽기 (한 줄 = 한 단어) */
-    private void loadFromFile() {
-        File file = new File("boss_words.txt"); // words.txt 와 같은 위치
+    // ---------- 로딩 ----------
+    public void loadFromFile(String fileName) {
+        wordPool.clear();
 
-        if (!file.exists()) {
-            System.err.println("[BossWordManager] boss_words.txt 파일을 찾을 수 없습니다. (기본 단어 사용 예정)");
+        File f = new File(fileName);
+        if (!f.exists()) {
+            System.out.println("[BossWordManager] 파일이 없습니다: " + f.getAbsolutePath());
             return;
         }
 
         try (BufferedReader br = new BufferedReader(
-                new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+                new InputStreamReader(new FileInputStream(f), StandardCharsets.UTF_8))) {
 
             String line;
             while ((line = br.readLine()) != null) {
-                line = line.trim();
-                // 빈 줄, 주석(#)은 무시
-                if (line.isEmpty() || line.startsWith("#")) {
-                    continue;
-                }
-                wordPool.add(line);
+                String w = line.trim();
+                if (!w.isEmpty()) wordPool.add(w);
             }
 
             System.out.println("[BossWordManager] 보스 단어 " + wordPool.size() + "개 로드 완료");
 
         } catch (IOException e) {
-            System.err.println("[BossWordManager] boss_words.txt 읽기 실패");
             e.printStackTrace();
         }
     }
 
-    /**
-     * 보스에게 쓸 단어들을 랜덤으로 N개 뽑아서 반환
-     * - 항상 length == count 가 되도록 생성
-     */
+    // ✅ 핵심: 중복 없는 단어 뽑기 (public으로 제공)
     public String[] getRandomBossWords(int count) {
-        if (wordPool.isEmpty() || count <= 0) {
-            return null;
+        if (wordPool.isEmpty() || count <= 0) return null;
+
+        // (1) 풀 크기가 충분하면: 완전 중복 없이 뽑기
+        if (wordPool.size() >= count) {
+            List<String> copy = new ArrayList<>(wordPool);
+            Collections.shuffle(copy, random);
+            String[] result = new String[count];
+            for (int i = 0; i < count; i++) result[i] = copy.get(i);
+            return result;
         }
 
+        // (2) 풀 크기가 부족하면: 연속 중복만 방지
         String[] result = new String[count];
+        String prev = null;
 
-        // 단어 개수가 부족해도 돌아가게 (중복 허용)
         for (int i = 0; i < count; i++) {
-            String w = wordPool.get(random.nextInt(wordPool.size()));
+            String w;
+            int guard = 0;
+            do {
+                w = wordPool.get(random.nextInt(wordPool.size()));
+                guard++;
+                if (guard > 100) break;
+            } while (prev != null && w.equals(prev));
+
             result[i] = w;
+            prev = w;
         }
 
         return result;
