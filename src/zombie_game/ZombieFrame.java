@@ -81,31 +81,65 @@ public class ZombieFrame extends JFrame {
 
     /** word.txt 에 단어 추가 (StartPanel에서 호출) */
     public void showWordSaveDialog() {
-        WordManager wm = WordManager.getInstance();
-
         while (true) {
-            String input = JOptionPane.showInputDialog(
-                    this,
-                    "추가할 단어를 입력하세요 (취소: 종료)",
-                    "단어 저장",
-                    JOptionPane.PLAIN_MESSAGE
+            JTextField field = new JTextField(16);
+
+            JButton okBtn = new JButton("저장");
+            JButton cancelBtn = new JButton("취소");
+
+            JOptionPane pane = new JOptionPane(
+                    new Object[]{"추가할 단어를 입력하세요:", field},
+                    JOptionPane.PLAIN_MESSAGE,
+                    JOptionPane.OK_CANCEL_OPTION,
+                    null,
+                    new Object[]{okBtn, cancelBtn},
+                    okBtn
             );
 
-            if (input == null) break;
+            JDialog dialog = pane.createDialog(this, "단어 저장");
+            dialog.getRootPane().setDefaultButton(okBtn); // ✅ Enter = 저장
 
+            okBtn.addActionListener(e -> { pane.setValue(okBtn); dialog.dispose(); });
+            cancelBtn.addActionListener(e -> { pane.setValue(cancelBtn); dialog.dispose(); });
+
+            dialog.setVisible(true);
+
+            Object value = pane.getValue();
+            if (value != okBtn) {
+                // ✅ 취소면 즉시 종료 (저장 알림 안 뜸)
+                return;
+            }
+
+            String input = field.getText();
+            if (input == null) continue;
             input = input.trim();
-            if (input.isEmpty()) continue;
 
-            wm.addWord(input);
+            if (input.isEmpty()) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "빈 단어는 저장할 수 없습니다.",
+                        "알림",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                // ✅ 다시 입력 받기(루프 계속)
+                continue;
+            }
+
+            // ✅ 저장
+            WordManager.getInstance().addWord(input);
+
+            // ✅ 저장 즉시 알림
+            JOptionPane.showMessageDialog(
+                    this,
+                    "단어가 저장되었습니다: " + input,
+                    "알림",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+
+            return; // ✅ 한 번 저장하면 종료 (원하면 continue로 바꾸면 연속 입력 가능)
         }
-
-        JOptionPane.showMessageDialog(
-                this,
-                "단어가 저장되었습니다.",
-                "알림",
-                JOptionPane.INFORMATION_MESSAGE
-        );
     }
+
 
     /** word.txt 전체 목록 보기 */
     public void showWordListDialog() {
