@@ -529,11 +529,6 @@ public class  ZombieGamePanel extends JPanel {
         // 🔥 항상 3개의 단어를 사용하는 보스
         String[] bossWords = BossWordManager.getInstance().getRandomBossWords(3);
 
-        // 파일이 없거나 로딩 실패했을 때 대비 기본값
-        if (bossWords == null || bossWords.length == 0) {
-            bossWords = new String[]{"핵펀치", "좀비대군", "도시붕괴"};
-        }
-
         int xPos = getWidth() / 2;
         bossZombie = new BossZombie(zombieIdSeq++, bossWords, 100.0, xPos);
         bossSpawnCountThisRound++;
@@ -1082,27 +1077,32 @@ public class  ZombieGamePanel extends JPanel {
     }
 
     private void gameOver() {
-        stopGameThread();
-        ScoreManager.getInstance().addScore(playerName, score);
+        stopGameThread(); // 또는 gameRunning = false;
 
-        String[] options = {"다시하기", "메인으로"};
-        int choice = JOptionPane.showOptionDialog(
+        ScoreManager sm = ScoreManager.getInstance();
+
+        int prevHigh = sm.getHighestScore();   // 저장 전 최고점
+        sm.addScore(playerName, score);        // 현재 점수 저장
+        boolean isNewRecord = score > prevHigh;
+
+        StringBuilder msg = new StringBuilder();
+        msg.append("게임 오버!\n\n");
+        msg.append("당신의 점수는 ").append(score).append("점입니다!");
+
+        if (isNewRecord) {
+            msg.append("\n\n🎉 축하합니다! 신기록입니다!");
+        }
+
+        JOptionPane.showMessageDialog(
                 this,
-                "GAME OVER\n최종 점수: " + score + "\n라운드: " + roundManager.getRound(),
-                "게임 종료",
-                JOptionPane.DEFAULT_OPTION,
-                JOptionPane.ERROR_MESSAGE,
-                null,
-                options,
-                options[0]
+                msg.toString(),
+                "게임 오버",
+                JOptionPane.INFORMATION_MESSAGE
         );
 
-        if (choice == 0) {
-            startNewGame(playerName);
-        } else {
-            frame.showStartPanel();
-        }
+        frame.showStartPanel();
     }
+
 
     private void gameClear() {
         stopGameThread();

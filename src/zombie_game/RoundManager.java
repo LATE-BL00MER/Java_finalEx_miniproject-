@@ -28,16 +28,14 @@ public class RoundManager {
 
         switch (round) {
             case 1:
-                target = 5;   // 1라운드 → 2라운드로 가는 기준
+                target = 5;   // 1 -> 2
                 break;
             case 2:
-                target = 10;  // 2라운드 → 3라운드로 가는 기준
+                target = 15;  // 2 -> 3 (누적 15점)
                 break;
             case 3:
-                target = 15;  // 3라운드 이후는 게임 클리어 쪽에서 처리
-                break;
+                return false; // 3라운드는 무한 유지(레벨업 없음)
             default:
-                // 4라운드 이상은 이 프로젝트에서는 사용하지 않음
                 return false;
         }
 
@@ -47,6 +45,7 @@ public class RoundManager {
         }
         return false;
     }
+
 
     /** 새 게임 시작 시 라운드 초기화 */
     public void reset() {

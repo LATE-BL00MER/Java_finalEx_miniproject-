@@ -19,7 +19,7 @@ public class ZombieRankingPanel extends JPanel {
         setBackground(new Color(10, 10, 18));
 
         // ===================== 상단 타이틀 =====================
-        JLabel title = new JLabel("※ 명예의 전당 ※", SwingConstants.CENTER);
+        JLabel title = new JLabel("※ TOP 10 명예의 전당 ※", SwingConstants.CENTER);
         title.setFont(new Font("맑은 고딕", Font.BOLD, 44));
         title.setForeground(new Color(255, 215, 0));
         title.setBorder(new EmptyBorder(30, 10, 20, 10));

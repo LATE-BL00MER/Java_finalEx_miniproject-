@@ -45,6 +45,12 @@ public class ScoreManager {
         saveScores();
     }
 
+    /** 최고 점수 반환 (신기록 여부 판단용) */
+    public synchronized int getHighestScore() {
+        if (scores.isEmpty()) return 0;
+        return scores.get(0).score; // 이미 내림차순 정렬 상태
+    }
+
     /** 상위 N개 점수만 반환 (필요하면 랭킹 화면에서 사용 가능) */
     public synchronized List<ScoreEntry> getTopScores(int limit) {
         int end = Math.min(limit, scores.size());
