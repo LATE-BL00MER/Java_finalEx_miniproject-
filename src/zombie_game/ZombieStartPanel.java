@@ -269,4 +269,11 @@ public class ZombieStartPanel extends JPanel {
             g.fillRect(0, 0, getWidth(), getHeight());
         }
     }
+
+    //  시작 화면으로 돌아올 때 이름 입력칸 초기화
+    // =========================================================
+    public void resetFields() {
+        nameField.setText("");
+        nameField.requestFocusInWindow();
+    }
 }

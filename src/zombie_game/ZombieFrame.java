@@ -55,6 +55,7 @@ public class ZombieFrame extends JFrame {
 
         // StartPanel 아이콘 상태 동기화
         startPanel.syncSoundIcon();
+        startPanel.resetFields();
 
         cardLayout.show(cardPanel, "START");
     }
