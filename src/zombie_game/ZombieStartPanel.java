@@ -207,19 +207,16 @@ public class ZombieStartPanel extends JPanel {
 
     private ImageIcon loadAndResizeIcon(String absoluteOrRelPath, int size) {
         if (absoluteOrRelPath == null || absoluteOrRelPath.isEmpty()) {
-            System.err.println("❌ 아이콘 경로가 비어있음");
             return new ImageIcon();
         }
 
         File f = new File(absoluteOrRelPath);
         if (!f.exists()) {
-            System.err.println("❌ 아이콘 파일 없음: " + absoluteOrRelPath);
             return new ImageIcon();
         }
 
         ImageIcon origin = new ImageIcon(f.getAbsolutePath());
         if (origin.getIconWidth() <= 0) {
-            System.err.println("❌ 아이콘 읽기 실패(파일은 존재): " + f.getAbsolutePath());
             return new ImageIcon();
         }
 
@@ -229,19 +226,16 @@ public class ZombieStartPanel extends JPanel {
 
     private Image loadImage(String absoluteOrRelPath) {
         if (absoluteOrRelPath == null || absoluteOrRelPath.isEmpty()) {
-            System.err.println("❌ 배경 경로가 비어있음");
             return null;
         }
 
         File f = new File(absoluteOrRelPath);
         if (!f.exists()) {
-            System.err.println("❌ 배경 파일 없음: " + absoluteOrRelPath);
             return null;
         }
 
         ImageIcon icon = new ImageIcon(f.getAbsolutePath());
         if (icon.getIconWidth() <= 0) {
-            System.err.println("❌ 배경 읽기 실패(파일은 존재): " + f.getAbsolutePath());
             return null;
         }
         return icon.getImage();

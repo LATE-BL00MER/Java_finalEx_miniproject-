@@ -85,7 +85,7 @@ public class ScoreManager {
                 Collections.sort(scores, (a, b) -> Integer.compare(b.score, a.score));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            // 디버깅 출력 제거 (실행 흐름 동일)
         }
     }
 
@@ -94,7 +94,7 @@ public class ScoreManager {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
             oos.writeObject(scores);
         } catch (IOException e) {
-            e.printStackTrace();
+            // 디버깅 출력 제거 (실행 흐름 동일)
         }
     }
 

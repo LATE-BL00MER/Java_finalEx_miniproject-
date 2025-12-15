@@ -19,15 +19,14 @@ public class AudioPlayer {
             // 프로젝트 실행 위치(최상위 폴더) 기준으로 파일 찾기
             File file = new File(fileName);
             if (!file.exists()) {
-                System.err.println("오디오 파일을 찾을 수 없습니다: " + file.getAbsolutePath());
-                return;
+                return; // 디버깅 출력 제거 (동작 동일)
             }
 
             AudioInputStream ais = AudioSystem.getAudioInputStream(file);
             clip = AudioSystem.getClip();
             clip.open(ais);
         } catch (Exception e) {
-            e.printStackTrace();
+            // 디버깅 출력 제거 (동작 동일)
         }
     }
 

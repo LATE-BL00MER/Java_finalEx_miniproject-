@@ -48,10 +48,8 @@ public class WordManager {
                 }
             }
 
-            System.out.println("✔ word.txt 로드 완료 (단어 수: " + words.size() + ")");
-
         } catch (Exception e) {
-            e.printStackTrace();
+            // 디버깅 출력 제거 (실행 흐름 동일)
         }
     }
 
@@ -68,7 +66,7 @@ public class WordManager {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            // 디버깅 출력 제거 (실행 흐름 동일)
         }
     }
 
@@ -115,5 +113,4 @@ public class WordManager {
         if (words.isEmpty()) return "???";
         return words.get(random.nextInt(words.size()));
     }
-
 }

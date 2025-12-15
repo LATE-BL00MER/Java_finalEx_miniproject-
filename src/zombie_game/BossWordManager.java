@@ -24,8 +24,7 @@ public class BossWordManager {
 
         File f = new File(fileName);
         if (!f.exists()) {
-            System.out.println("[BossWordManager] 파일이 없습니다: " + f.getAbsolutePath());
-            return;
+            return; // 디버깅 출력 제거 (동작 동일)
         }
 
         try (BufferedReader br = new BufferedReader(
@@ -37,10 +36,8 @@ public class BossWordManager {
                 if (!w.isEmpty()) wordPool.add(w);
             }
 
-            System.out.println("[BossWordManager] 보스 단어 " + wordPool.size() + "개 로드 완료");
-
         } catch (IOException e) {
-            e.printStackTrace();
+            // 디버깅 출력 제거 (동작 동일)
         }
     }
 
